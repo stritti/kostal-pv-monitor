@@ -18,8 +18,6 @@
 #include <ModbusIP_ESP8266.h>
 #include "kostal_modbus.h"
 
-
-#if ( defined(TTGO_EINK) )
 #include <GxEPD.h>
 #include <GxGDE0213B1/GxGDE0213B1.cpp> // 2.13" b/w
 
@@ -49,20 +47,14 @@ RTC_DATA_ATTR int wakeupCount = 0; // RTC counter variable
 
 #define LED_BUILTIN 2 // built-in LED on TTGO-T5
 
-#else
-#include <U8g2lib.h>
-#endif
 
 WiFiClient    theClient;  // Set up a client for the WiFi connection
 
 IPAddress remote;  // Address of Modbus Slave device
 
-#if ( defined(TTGO_EINK) )
-// e-ink display of TTGO T5
 
-// GxIO_SPI(SPIClass& spi, int8_t cs, int8_t dc, int8_t rst = -1, int8_t bl = -1);
+// e-ink display of TTGO T5
 GxIO_Class io(SPI, SS, 17, 16); // arbitrary selection of rst=17, busy=16
-// GxGDEP015OC1(GxIO& io, uint8_t rst = D4, uint8_t busy = D2);
 GxEPD_Class display(io, 16, 4); // arbitrary selection of (16), 4
 U8G2_FOR_ADAFRUIT_GFX u8g2_for_adafruit_gfx;
 
@@ -72,10 +64,6 @@ typedef enum
   LEFT_ALIGNMENT,
   CENTER_ALIGNMENT,
 } Text_alignment;
-#else
-// Display hardware I2C interface constructor for 0,96" OLED display
-U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(/* rotation=*/U8G2_R0, /* reset=*/U8X8_PIN_NONE);
-#endif
 
 AsyncWebServer server(80);
 
@@ -193,7 +181,6 @@ void writeToDisplay(uint16_t y, const char* label, const char* unit, float value
   }
   Serial.println(buffer);
 
-#if ( defined(TTGO_EINK) )
   display.setTextColor(GxEPD_BLACK);
   //display.setFont(&FreeSans9pt7b);
   display.setFont(&FreeMono12pt7b);
@@ -201,13 +188,6 @@ void writeToDisplay(uint16_t y, const char* label, const char* unit, float value
 
   display.setCursor(0, y*20);
   display.print(buffer);
-
-
-#else
-  u8g2.setFont(u8g2_font_t0_17b_tr);
-  u8g2.setCursor(0, y * 16);
-  u8g2.print(buffer);
-#endif
 }
 
 /**
@@ -222,19 +202,12 @@ void writeToDisplay(uint16_t y, const char* label, const char* unit, uint16_t va
   char buffer[50];
   sprintf(buffer, "%s %4.0d%s", label, value, unit);
   Serial.println(buffer);
-#if ( defined(TTGO_EINK) )
   display.setTextColor(GxEPD_BLACK);
   display.setFont(&FreeMono12pt7b);
   display.setTextSize(1);
 
   display.setCursor(0, y*20);
   display.print(buffer);
-#else
-  u8g2.setFont(u8g2_font_t0_17b_tr);
-  //u8g2.setFont(u8g2_font_profont15_tr);  // choose a suitable font
-  u8g2.setCursor(0, y * 16);
-  u8g2.print(buffer);
-#endif
 }
 
 /**
@@ -246,15 +219,9 @@ void drawBattery(uint16_t soc) {
   // draw battery
   char buffer[50];
   sprintf(buffer, "%d", (soc + 5) / 20);
-#if ( defined(TTGO_EINK) )
   display.setTextColor(GxEPD_BLACK);
   u8g2_for_adafruit_gfx.setFont(u8g2_font_battery19_tn);
   u8g2_for_adafruit_gfx.drawStr(170, 42, buffer);
-
-#else
-  u8g2.setFont(u8g2_font_battery19_tn);
-  u8g2.drawStr(107, 22, buffer);
-#endif
 }
 
 /**
@@ -270,17 +237,13 @@ void drawSmiley(float own_consumption_grid, float own_consumption_pv, float own_
   } else {
     smiley = 0x0021; /* hex 21 smily man */
   }
-#if ( defined(TTGO_EINK) )
+
   u8g2_for_adafruit_gfx.setFontMode(0);
   u8g2_for_adafruit_gfx.setForegroundColor(0);
   u8g2_for_adafruit_gfx.setBackgroundColor(1);
   // u8g2_for_adafruit_gfx.setFontMode(1);
   u8g2_for_adafruit_gfx.setFont(u8g2_font_emoticons21_tr);
   u8g2_for_adafruit_gfx.drawGlyph(170, 76, smiley);
-#else
-  u8g2.setFont(u8g2_font_emoticons21_tr);
-  u8g2.drawGlyph(100, 64, smiley);
-#endif
 }
 void writeOwnConsumption () {
   writeToDisplay(1, "Kostal Monitor", "",(uint16_t) 0);
@@ -316,7 +279,6 @@ void setup() {
 
   SPIFFS.begin(true);  // Will format on the first run after failing to mount
 
-#if ( defined(TTGO_EINK) )
   display.init(SERIAL_SPEED);
   u8g2_for_adafruit_gfx.begin(display);
   display.setRotation(3);
@@ -329,19 +291,9 @@ void setup() {
   display.setCursor(0, 17);
   display.print("Kostal Monitor");
   display.update();
-#else
-  u8g2.begin();
-  u8g2.clearBuffer();                 // clear the internal memory
-  u8g2.setFont(u8g2_font_t0_15b_tr);  // choose a suitable font
-  u8g2.setCursor(0, 17);
-  u8g2.print(F("Kostal Monitor"));
-  u8g2.sendBuffer();  // transfer internal memory to the display
-#endif
 
   WiFiSettings.onPortal = []() {
-#if ( defined(TTGO_EINK) )
-
-#else
+/* TODO:
     u8g2.clearBuffer();                 // clear the internal memory
     u8g2.setFont(u8g2_font_t0_15b_tr);  // choose a suitable font
     u8g2.setCursor(0, 14);
@@ -353,17 +305,13 @@ void setup() {
     u8g2.setCursor(8, 56);
     u8g2.println(hostname);
     u8g2.sendBuffer();  // transfer internal memory to the display
-#endif
+ */
   };
 
   // Set custom callback functions
   WiFiSettings.onSuccess = []() {
     IPAddress wIP = WiFi.localIP();
     Serial.printf("WiFi IP address: %u.%u.%u.%u\n", wIP[0], wIP[1], wIP[2], wIP[3]);
-
-    //WiFi.mode(WIFI_STA);
-    //WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
-    //WiFi.setHostname(hostname.c_str());  //define hostname
 
     WiFi.hostByName(kostal_hostname.c_str(), remote);
     Serial.print(F("Connecting to Modbus Slave: "));
@@ -373,9 +321,7 @@ void setup() {
     // Set up ModbusTCP client.
     mb.slave(KOSTAL_MODBUS_SLAVE_ID);
 
-#if ( defined(TTGO_EINK) )
-
-#else
+/* TODO:
     u8g2.clearBuffer();                 // clear the internal memory
     u8g2.setFont(u8g2_font_t0_15b_tr);  // choose a suitable font
     u8g2.setCursor(0, 16);
@@ -385,19 +331,17 @@ void setup() {
     u8g2.setCursor(0, 48);
     u8g2.print(F("Loading data ..."));
     u8g2.sendBuffer();  // transfer internal memory to the display
-#endif
+*/
   };
 
   WiFiSettings.onFailure = []() {
-#if ( defined(TTGO_EINK) )
-
-#else
+/* TODO:
     u8g2.clearBuffer();                 // clear the internal memory
     u8g2.setFont(u8g2_font_t0_15b_tr);  // choose a suitable font
     u8g2.setCursor(2, 32);
     u8g2.print(F("WiFi connection failed."));
     u8g2.sendBuffer();  // transfer internal memory to the display
-#endif
+*/
   };
 
   WiFiSettings.hostname = hostname.c_str();
@@ -415,7 +359,6 @@ void setup() {
   Serial.print(get_float(214));
   Serial.println(F("\u00B0C"));
 
-#if ( defined(TTGO_EINK) )
   if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER) {
     Serial.print("Boot Count : ");
     Serial.println(wakeupCount);
@@ -442,8 +385,6 @@ void setup() {
 
   esp_deep_sleep_start();
   Serial.println("This will never be printed");
-
-#endif
 }
 
 uint32_t showLast       = 0;
@@ -454,44 +395,4 @@ bool     showConsumtion = true;
  *
  */
 void loop() {
-#if ( !defined(TTGO_EINK) )
-  if (millis() - showLast >
-      (DATA_UPDATE_DELAY_SECONDS * 1000)) {  // Display register value every n seconds (with default settings)
-    showLast = millis();
-
-    Serial.print(F("Total DC power: "));
-    Serial.print(get_float(100));
-    Serial.println(F(" W"));
-    Serial.println(F(" "));
-
-    u8g2.clearBuffer();  // clear the internal memory
-
-    if (showConsumtion == true) {
-      writeToDisplay(1, "SOC ", "%", get_uint16(514)); // battery SoC
-      writeToDisplay(2, "PV  ", "W", get_float(116)); // own consumption PV
-      writeToDisplay(3, "Akku", "W", get_float(106)); // own consumption battery
-      writeToDisplay(4, "Netz", "W", get_float(108)); // own consumption grid
-    } else {
-      writeToDisplay(2, "PVgen", "W", get_float(224) + get_float(234));
-      writeToDisplay(3, "react", "W", get_float(254));
-      writeToDisplay(4, "appar", "W", get_float(256));
-    }
-
-    drawBattery(battery_soc);
-
-    // draw smiley
-    u8g2.setFont(u8g2_font_emoticons21_tr);
-    if (ownConsumption_grid > (ownConsumption_pv + ownConsumption_battery)) {
-      u8g2.drawGlyph(100, 64, 0x0026); /* hex 26 sad man */
-    } else if (ownConsumption_pv > (ownConsumption_battery + ownConsumption_grid)) {
-      u8g2.drawGlyph(100, 64, 0x0036); /* hex 36 sunglass smily man */
-    } else {
-      u8g2.drawGlyph(100, 64, 0x0021); /* hex 21 smily man */
-    }
-
-    u8g2.sendBuffer();  // transfer internal memory to the display
-
-    showConsumtion = !showConsumtion;
-  }
-#endif
 }
