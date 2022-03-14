@@ -28,5 +28,3 @@ jobs:
           pip install platformio
       - name: Run PlatformIO
         run: pio run
-      - name: Prune 
-        run: pio system prune
