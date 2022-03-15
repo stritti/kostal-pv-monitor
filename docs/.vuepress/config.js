@@ -3,6 +3,7 @@ const { path } = require('@vuepress/utils')
 module.exports = {
   lang: 'en-US',
   title: 'Kostal PV Monitor',
+  base: '/kostal-pv-monitor/',
   description: 'ESP32 based device that can be used to monitor the power usage of a Kostal Plenticore converter',
   repo: 'https://github.com/stritti/kostal-pv-monitor',
   theme: path.resolve(__dirname, './theme'),

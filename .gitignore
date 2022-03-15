@@ -117,3 +117,4 @@ private_config.ini
 node_modules
 .temp
 .cache
+dist
