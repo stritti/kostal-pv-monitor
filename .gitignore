@@ -112,7 +112,9 @@ dkms.conf
 data/homie/config.json
 .vscode/settings.json
 private_config.ini
-docs/.vuepress/.cache
-docs/.vuepress/.temp
-node_modules
 *.log
+
+node_modules
+.temp
+.cache
+dist

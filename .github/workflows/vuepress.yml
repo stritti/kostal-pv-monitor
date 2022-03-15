@@ -1,0 +1,23 @@
+name: vuepress - CI
+on: [push]
+  # trigger deployment on every push to main branch
+  #push:
+  #  branches: [main]
+  # trigger deployment manually
+  #workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: vuepress-deploy
+        uses: jenkey2011/vuepress-deploy@master
+        env:
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          TARGET_REPO: stritti/kostal-pv-monitor
+          TARGET_BRANCH: gh-pages
+          BUILD_SCRIPT: npm ci && npm run docs:build
+          BUILD_DIR: docs/.vuepress/dist/
