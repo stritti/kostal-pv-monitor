@@ -12,7 +12,6 @@ jobs:
         env:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           TARGET_REPO: stritti/kostal-pv-monitor
-          TARGET_LINK: //stritti.github.io/kostal-pv-monitor/
           TARGET_BRANCH: gh-pages
           BUILD_SCRIPT: npm ci && npm run docs:build
           BUILD_DIR: docs/.vuepress/dist/
