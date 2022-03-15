@@ -461,7 +461,7 @@ void setup() {
 
   writeOwnConsumption();
 
-  mb.disconnect(kostal_hostname);
+  mb.disconnect(remote);
 
   Serial.printf("Going to sleep now for %d sec.\n", (DATA_UPDATE_DELAY_SECONDS));
   esp_sleep_enable_timer_wakeup(DATA_UPDATE_DELAY_SECONDS * uS_TO_S_FACTOR);
