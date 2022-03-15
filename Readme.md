@@ -3,7 +3,8 @@
 [![PlatformIO CI](https://github.com/stritti/kostal-pv-monitor/workflows/PlatformIO%20CI/badge.svg)](https://github.com/stritti/kostal-pv-monitor/workflows/PlatformIO%20CI+CI%22)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Project of [2022 ESP32 Initiation Program: "Micro-Control" Your World](https://community.dfrobot.com/makelog-312165.html).
+Project initiated on [2022 ESP32 Initiation Program: "Micro-Control" Your World](https://community.dfrobot.com/makelog-312165.html). Many thanks to [DFRobot](https://www.dfrobot.com/index.html) for the support.
+
 
 This is a ESP32 based device that can be used to monitor the power usage of a Kostal Plenticore converter:
 
@@ -11,6 +12,8 @@ This is a ESP32 based device that can be used to monitor the power usage of a Ko
 * Own home consumption from PV (W)
 * Own home consumption from grid (W)
 * Own home consumption from battery (W)
+
+* Time of last query via NTP Client
 
 Data is shown on 0.96" OLED display:
 
@@ -24,15 +27,11 @@ Data is shown on 0.96" OLED display:
 
 ## Configuration
 
-Copy `private_config.template.ini` to `private_config.ini` and fill in the values:
-
 * `wifi_ssid`: SSID/Name of your WiFi network
-
 * `wifi_pwd`: Password of your WiFi network
 
-* `kostal_modbus_hostname`: Hostname of your Kostal Plenticore Converter
+* `kostal_hostname`: Hostname of your Kostal Plenticore Converter
 * `kostal_modbus_port`: Port of your Kostal Plenticore Converter (default: 1502)
-* `kostal_modbus_slave_id`: Slave ID of your Kostal Plenticore Converter (default: 71)
 
 Data of the **Kostal Plenticore Modbus** could be found in settings of your Kostal Plenticore Converter:
 
@@ -62,6 +61,10 @@ Project is developed with [PlatformIO](https://platformio.org/).
 ### Modbus
 
 Communication is based on [Kostal Plenticore Modbus](https://www.kostal-solar-electric.com/de-de/download/-/media/document-library-folder---kse/2020/12/15/13/38/ba_kostal-interface-description-modbus-tcp_sunspec_hybrid.pdf/)
+
+## Credits
+
+* [ESP-badge](https://github.com/lewisxhe/Esp-badge): For loading bmp images.
 
 ## License
 
