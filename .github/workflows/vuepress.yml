@@ -1,5 +1,11 @@
 name: vuepress - CI
 on: [push]
+  # trigger deployment on every push to main branch
+  #push:
+  #  branches: [main]
+  # trigger deployment manually
+  #workflow_dispatch:
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
