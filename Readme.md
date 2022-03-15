@@ -3,56 +3,30 @@
 [![PlatformIO CI](https://github.com/stritti/kostal-pv-monitor/workflows/PlatformIO%20CI/badge.svg)](https://github.com/stritti/kostal-pv-monitor/workflows/PlatformIO%20CI+CI%22)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Project initiated on [2022 ESP32 Initiation Program: "Micro-Control" Your World](https://community.dfrobot.com/makelog-312165.html). Many thanks to [DFRobot](https://www.dfrobot.com/index.html) for the support.
+[![Kostal PV Monitor Gadget](docs/public/../.vuepress/public/img/kostal-pv-monitor.jpg)](https://stritti.github.io/kostal-pv-monitor/)
 
+* PV production [W]
+* Battery charge/discharge [W] and SoC of battery [%]
+* House consumption [W]
+* Grid consumption/generation [W]
+* Time of last query
 
-This is a ESP32 based device that can be used to monitor the power usage of a Kostal Plenticore converter:
+To get fast insight on power consumtion of the house, the device shows smiley depending on primary energy source:
 
-* Battery SoC (0-100%)
-* Own home consumption from PV (W)
-* Own home consumption from grid (W)
-* Own home consumption from battery (W)
-
-* Time of last query via NTP Client
-
-Data is shown on 0.96" OLED display:
-
-![OLED display](docs/img/kostal-pv-monitor-096-oled.jpg)
-
-## Parts List (BOM)
-
-* [DFRobot Monochrome 0.96" 128x64 I2C/SPI OLED Display](https://www.dfrobot.com/product-2017.html)
-* [DFRobot Gravity: IO Shield for FireBeetle M0 and ESP32-E](https://www.dfrobot.com/product-2395.html)
-* [DFRobot FireBeetle ESP32-E IoT Microcontroller with Header](https://www.dfrobot.com/product-2231.html)
-
-## Configuration
-
-* `wifi_ssid`: SSID/Name of your WiFi network
-* `wifi_pwd`: Password of your WiFi network
-
-* `kostal_hostname`: Hostname of your Kostal Plenticore Converter
-* `kostal_modbus_port`: Port of your Kostal Plenticore Converter (default: 1502)
-
-Data of the **Kostal Plenticore Modbus** could be found in settings of your Kostal Plenticore Converter:
-
-* Navigate within menu: `Settings` -> `Modbus/Sunspec`
-* Pay attention that Modbus is activated.
-
-![Modbus settings](/docs/img/modbus-settings.png)
-
-More Information read [Convention for compile time configuration of PlatformIO projects](https://blog.yavilevich.com/2020/09/convention-for-compile-time-configuration-of-platformio-projects/)
+* battery: 🙂
+* PV: 😎
+* grid:🙁
 
 ## Development
 
 ### TODOs & Links
 
-* add lipo battery https://www.az-delivery.de/blogs/azdelivery-blog-fur-arduino-und-raspberry-pi/5v-akku-stromversorgung-mit-3-7-v-lipo-akku-und-laderegler
-https://www.bastelgarage.ch/index.php?route=extension/d_blog_module/post&post_id=14
-* https://github.com/re-innovation/TTGO_EPaper
-* Battery Level: https://gist.github.com/jenschr/dfc765cb9404beb6333a8ea30d2e78a1
-* https://github.com/olikraus/U8g2_for_Adafruit_GFX
-* https://github.com/Xinyuan-LilyGO/T5-Ink-Screen-Series
-
+* add lipo battery <https://www.az-delivery.de/blogs/azdelivery-blog-fur-arduino-und-raspberry-pi/5v-akku-stromversorgung-mit-3-7-v-lipo-akku-und-laderegler>
+<https://www.bastelgarage.ch/index.php?route=extension/d_blog_module/post&post_id=14>
+* <https://github.com/re-innovation/TTGO_EPaper>
+* Battery Level: <https://gist.github.com/jenschr/dfc765cb9404beb6333a8ea30d2e78a1>
+* <https://github.com/olikraus/U8g2_for_Adafruit_GFX>
+* <https://github.com/Xinyuan-LilyGO/T5-Ink-Screen-Series>
 
 ### PlatformIO
 
@@ -60,10 +34,25 @@ Project is developed with [PlatformIO](https://platformio.org/).
 
 ### Modbus
 
-Communication is based on [Kostal Plenticore Modbus](https://www.kostal-solar-electric.com/de-de/download/-/media/document-library-folder---kse/2020/12/15/13/38/ba_kostal-interface-description-modbus-tcp_sunspec_hybrid.pdf/)
+Communication is based on [Kostal Plenticore Modbus](docs\BA_KOSTAL-Interface-description-MODBUS-TCP_SunSpec_Hybrid.pdf)
+
+## Used Libraries
+
+* adafruit/Adafruit BusIO@^1.11.2
+* adafruit/Adafruit GFX Library@^1.10.13
+* zinggjm/GxEPD@^3.1.1
+* emelianov/modbus-esp8266@^4.0.0
+* juerd/ESP-WiFiSettings@^3.8.0
+* me-no-dev/AsyncTCP@^1.1.1
+* olikraus/U8g2@^2.32.10
+* olikraus/U8g2_for_Adafruit_GFX@^1.8.0
+* arduino-libraries/NTPClient@^3.1.0
+
+* vuepress: <https://vuepress.vuejs.org/> (for documentation)
 
 ## Credits
 
+* Project was initiated on [2022 ESP32 Initiation Program: "Micro-Control" Your World](https://community.dfrobot.com/makelog-312165.html). Many thanks to [DFRobot](https://www.dfrobot.com/index.html) for the support.
 * [ESP-badge](https://github.com/lewisxhe/Esp-badge): For loading bmp images.
 
 ## License
