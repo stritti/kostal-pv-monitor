@@ -1,0 +1,32 @@
+{
+  "name": "kostal-pv-monitor",
+  "version": "1.0.0",
+  "description": "Kostal Plenticore Converter Monitor",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "lib": "lib"
+  },
+  "scripts": {
+    "docs:dev": "vuepress dev docs",
+    "docs:build": "vuepress build docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stritti/kostal-pv-monitor.git"
+  },
+  "keywords": [
+    "kostal",
+    "smarthome",
+    "converter"
+  ],
+  "author": "Stephan Strittmatter",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/stritti/kostal-pv-monitor/issues"
+  },
+  "homepage": "https://github.com/stritti/kostal-pv-monitor#readme",
+  "devDependencies": {
+    "vuepress": "^2.0.0-beta.36"
+  }
+}

@@ -112,3 +112,9 @@ dkms.conf
 data/homie/config.json
 .vscode/settings.json
 private_config.ini
+*.log
+
+node_modules
+.temp
+.cache
+dist
