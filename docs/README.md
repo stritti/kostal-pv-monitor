@@ -55,8 +55,7 @@ First of all, please verify if Modbus is activated at your converter:
 
 ![Modbus settings](/img/modbus-settings.png)
 
-
-### Assamble Device
+### Assemble Device
 
 1. Upload firmware
 2. Connect battery
@@ -65,6 +64,7 @@ First of all, please verify if Modbus is activated at your converter:
 ### Initial Start
 
 <img src="/img/kostal-pv-monitor-settings.jpg" alt="Kostal PV Monitor Settings" width="300" align="right">
+
 If you start the device firsst time, it showsinformation to conect to its own WiFi hotspot. The Device runs in AP mode.
 
 Take for example your smartphone and connect to shown WiFi hotspot.
