@@ -1,7 +1,7 @@
 ---
 home: true
 heroImage: /img/kostal-pv-monitor.jpg
-tagline: ESP32 based Device to monitor Power usage of a Kostal Plenticore Converters
+tagline: ESP32 based Device to monitor Power Consumption of Kostal Plenticore Converters
 
 features:
   - title: ESP32 based E-Ink Device
@@ -27,7 +27,7 @@ This gadget is designed to show the power usage of a Kostal Plenticore Converter
 Data is transfered using WiFi and read from Kostal Plenticore Converter using Modbus protocol.
 
 ::: warning
-This is a private project and is not officially supported by [Kostal Solar Electric](https://www.kostal-solar-electric.com/).
+This is a private project and not officially supported by [Kostal Solar Electric](https://www.kostal-solar-electric.com/).
 :::
 
 ![Display of Kostal Plenticore PV Monitor](/img/kostal-pv-monitor-display.jpg)
