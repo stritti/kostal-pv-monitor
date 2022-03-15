@@ -206,9 +206,13 @@ static void displayText(const char* str, int16_t y, uint8_t align, int16_t offse
  */
 String getPowerString(float value) {
   char buffer[50];
-  if (-1 < value && value < 1) {
+
+  if (value < 0) {
+    value *= -1;  //remove the minus sign
+  }
+  if (value < 1) {
     sprintf(buffer, "  0 W");
-  } else if (-1000 < value && value < 1000) {
+  } else if (value < 1000) {
     sprintf(buffer, "%3.0d W", (int)value);
   } else {
     sprintf(buffer, "%2.1f kW", value / 1000);
