@@ -461,12 +461,28 @@ void setup() {
 
   writeOwnConsumption();
 
-  mb.disconnect(remote);
+  mb.disconnect(remote);            // Close connection and
+  mb.dropTransactions();            // Cancel all waiting transactions
+  while (mb.isConnected(remote)) {  // Check if connection to Modbus Slave is established and wait until it is closed
+    mb.task();
+    delay(10);
+  }
+
+  WiFi.disconnect();
 
   Serial.printf("Going to sleep now for %d sec.\n", (DATA_UPDATE_DELAY_SECONDS));
   esp_sleep_enable_timer_wakeup(DATA_UPDATE_DELAY_SECONDS * uS_TO_S_FACTOR);
   pinMode(MODEM_POWER_ON, OUTPUT);
   digitalWrite(MODEM_POWER_ON, LOW);
+  /*
+  Next we decide what all peripherals to shut down/keep on
+  By default, ESP32 will automatically power down the peripherals
+  not needed by the wakeup source, but if you want to be a poweruser
+  this is for you. Read in detail at the API docs
+  http://esp-idf.readthedocs.io/en/latest/api-reference/system/deep_sleep.html
+  Left the line commented as an example of how to configure peripherals.
+  The line below turns off all RTC peripherals in deep sleep.
+  */
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_OFF);
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_OFF);
