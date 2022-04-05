@@ -48,8 +48,8 @@ WiFiUDP   ntpUDP;
 NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600, 60000);
 
 // e-ink display of TTGO T5
-GxIO_Class            io(SPI, SS, 17, 16);  // arbitrary selection of rst=17, busy=16
-GxEPD_Class           display(io, 16, 4);   // arbitrary selection of (16), 4
+GxIO_Class            io(SPI, ELINK_SS, ELINK_DC, ELINK_RESET);  // arbitrary selection of rst=17, busy=16
+GxEPD_Class           display(io, ELINK_RESET, ELINK_BUSY);      // arbitrary selection of (16), 4
 U8G2_FOR_ADAFRUIT_GFX u8g2_for_adafruit_gfx;
 
 enum {
