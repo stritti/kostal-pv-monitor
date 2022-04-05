@@ -396,14 +396,24 @@ void showWiFiConnectionFailedScreen() {
 }
 
 void showWiFiConnectedScreen() {
+
+  WiFi.waitForConnectResult();
+
   IPAddress wIP = WiFi.localIP();
   Serial.printf("WiFi IP address: %u.%u.%u.%u\n", wIP[0], wIP[1], wIP[2], wIP[3]);
 
+  Serial.printf("Connecting to %s\n", kostal_hostname.c_str());
   WiFi.hostByName(kostal_hostname.c_str(), remote);
-  Serial.printf("Connecting to kostal converter: %s (IP: %u.%u.%u.%u)\n", kostal_hostname.c_str(), remote[0], remote[1],
-                remote[2], remote[3]);
 
-  mb.connect(remote, kostal_modbus_port);
+  if (remote != INADDR_NONE) {
+    Serial.printf("Connecting to kostal converter: %s (IP: %u.%u.%u.%u)\n", kostal_hostname.c_str(), remote[0], remote[1],
+                  remote[2], remote[3]);
+
+    mb.connect(remote, kostal_modbus_port);
+  } else {
+    Serial.printf("Could not resolve hostname: %s\n", kostal_hostname.c_str());
+  }
+}
 }
 /**
  * @brief
