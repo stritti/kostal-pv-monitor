@@ -63,8 +63,6 @@ String   kostal_hostname;     // hostname of the Modbus TCP server
 uint16_t kostal_modbus_port;  // port of the Modbus TCP server
 uint32_t modbus_query_last = 0;
 
-extern void drawBitmap(GxEPD& display, const char* filename, int16_t x, int16_t y, bool with_color);
-
 extern const uint8_t u8g2_font_streamline_ecology_t[] U8G2_FONT_SECTION("u8g2_font_streamline_ecology_t");
 extern const uint8_t u8g2_font_streamline_interface_essential_home_menu_t[] U8G2_FONT_SECTION(
     "u8g2_font_streamline_interface_essential_home_menu_t");
@@ -379,15 +377,17 @@ void writeOwnConsumption() {
 void showSetupScreen() {
   Serial.println("setup device");
 
+  display.fillScreen(GxEPD_WHITE);
   display.setFont(&FreeSans9pt7b);
   displayText("Kostal Monitor", 18, GxEPD_ALIGN_LEFT);
-  displayText("*** Setup ***", 60, GxEPD_ALIGN_CENTER);
-  displayText("Connect to WiFi:", 90, GxEPD_ALIGN_LEFT);
-  displayText(hostname.c_str(), 120, GxEPD_ALIGN_LEFT);
+  displayText("*** Setup ***", 50, GxEPD_ALIGN_CENTER);
+  displayText("Connect to WiFi & add data:", 80, GxEPD_ALIGN_CENTER);
+  displayText(hostname.c_str(), 110, GxEPD_ALIGN_CENTER);
   display.update();
 }
 
 void showWiFiConnectionFailedScreen() {
+  display.fillScreen(GxEPD_WHITE);
   display.setFont(&FreeSans9pt7b);
   displayText("Kostal Monitor", 18, GxEPD_ALIGN_LEFT);
   displayText("*** Error ***", 60, GxEPD_ALIGN_CENTER);
@@ -434,10 +434,12 @@ void setup() {
   // Set up the display
   display.init(SERIAL_SPEED);
   display.setRotation(3);
-  display.fillScreen(GxEPD_WHITE);
   display.setTextColor(GxEPD_BLACK);
   u8g2_for_adafruit_gfx.begin(display);
 
+  if (ESP_SLEEP_WAKEUP_TIMER != esp_sleep_get_wakeup_cause()) {
+    display.fillScreen(GxEPD_WHITE);
+  }
   WiFiSettings.hostname  = hostname.c_str();
   WiFiSettings.onPortal  = []() { showSetupScreen(); };
   WiFiSettings.onSuccess = []() { showWiFiConnectedScreen(); };
