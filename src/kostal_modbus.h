@@ -1,3 +1,6 @@
+#pragma once
+
+#include <ModbusIP_ESP8266.h>
 
 const uint8_t KOSTAL_MODBUS_SLAVE_ID = 71;    // slave id of the Modbus TCP server
 const int32_t MODBUS_QUERY_DELAY     = 5000;  // Show result every n'th millisecond (1500)

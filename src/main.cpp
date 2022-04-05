@@ -7,29 +7,18 @@
 #endif
 
 #define TTGO_T5_1_2 1  // see defines in board_def.h
+//#define TTGO_T5_2_3 1  // see defines in board_def.h
 #include "board_def.h"
+
+#include "ntp_localtime.h"
+#include "kostal_modbus.h"
+#include "u8g2_display.h"
 
 #include <Arduino.h>
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <SPIFFS.h>
 #include <WiFiSettings.h>
-
-#include <NTPClient.h>
-#include <WiFiUdp.h>
-
-#include <ModbusIP_ESP8266.h>
-#include "kostal_modbus.h"
-
-#include <GxEPD.h>
-#include <GxIO/GxIO_SPI/GxIO_SPI.h>
-#include <GxIO/GxIO.h>
-#include <U8g2_for_Adafruit_GFX.h>
-// FreeFonts from Adafruit_GFX
-#include <Fonts/FreeMono9pt7b.h>
-#include <Fonts/FreeMonoBold9pt7b.h>
-#include <Fonts/FreeSans9pt7b.h>
-#include <Fonts/FreeSansBold9pt7b.h>
 
 const String  hostname                  = "kostal-monitor";
 const int32_t DATA_UPDATE_DELAY_SECONDS = 60;  // Show result every second
@@ -43,31 +32,10 @@ RTC_DATA_ATTR int wakeUpCounter = 0;  // RTC counter variable
 WiFiClient theClient;  // Set up a client for the WiFi connection
 IPAddress  remote;     // Address of Modbus Slave device
 
-// Define NTP Client to get time
-WiFiUDP   ntpUDP;
-NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600, 60000);
-
-// e-ink display of TTGO T5
-GxIO_Class            io(SPI, ELINK_SS, ELINK_DC, ELINK_RESET);  // arbitrary selection of rst=17, busy=16
-GxEPD_Class           display(io, ELINK_RESET, ELINK_BUSY);      // arbitrary selection of (16), 4
-U8G2_FOR_ADAFRUIT_GFX u8g2_for_adafruit_gfx;
-
-enum {
-  GxEPD_ALIGN_RIGHT,
-  GxEPD_ALIGN_LEFT,
-  GxEPD_ALIGN_CENTER,
-};
-
 ModbusIP mb;                  //ModbusTCP object
 String   kostal_hostname;     // hostname of the Modbus TCP server
 uint16_t kostal_modbus_port;  // port of the Modbus TCP server
 uint32_t modbus_query_last = 0;
-
-extern const uint8_t u8g2_font_streamline_ecology_t[] U8G2_FONT_SECTION("u8g2_font_streamline_ecology_t");
-extern const uint8_t u8g2_font_streamline_interface_essential_home_menu_t[] U8G2_FONT_SECTION(
-    "u8g2_font_streamline_interface_essential_home_menu_t");
-extern const uint8_t
-    u8g2_font_streamline_interface_essential_wifi_t[] U8G2_FONT_SECTION("u8g2_font_streamline_interface_essential_wifi_t");
 
 /**
  * @brief reconstruct the float from 2 unsigned integers
@@ -87,7 +55,7 @@ float f_2uint_float(unsigned int uint1, unsigned int uint2) {
 }
 
 /**
- * @brief
+ * @brief Callback og Modbus TCP connection.
  *
  * @param event
  * @param transactionId
@@ -164,36 +132,6 @@ uint16_t get_uint16(uint16_t reg) {  // get the int16 from the Modbus register
   }
 
   return res;
-}
-
-/**
- * @brief
- *
- * @param str
- * @param y
- * @param align
- * @param offset
- */
-static void displayText(const char* str, int16_t y, uint8_t align, int16_t offset = 0) {
-  int16_t  x  = 0;
-  int16_t  x1 = 0, y1 = 0;
-  uint16_t w = 0, h = 0;
-  display.setCursor(x, y);
-  display.getTextBounds(str, x, y, &x1, &y1, &w, &h);
-  switch (align) {
-  case GxEPD_ALIGN_RIGHT:
-    display.setCursor(display.width() - w - x1 - offset, y);
-    break;
-  case GxEPD_ALIGN_LEFT:
-    display.setCursor(0 + offset, y);
-    break;
-  case GxEPD_ALIGN_CENTER:
-    display.setCursor(display.width() / 2 - ((w + x1) / 2), y);
-    break;
-  default:
-    break;
-  }
-  display.println(str);
 }
 
 /**
@@ -362,14 +300,8 @@ void writeOwnConsumption() {
     u8g2_for_adafruit_gfx.drawGlyph(display_center + arrow_offset_right, 105, 0x2b0a); /* ↘ */
   }
 
-  // update time
-  while (!timeClient.update()) {
-    timeClient.forceUpdate();
-  }
-  String formattedTime = timeClient.getFormattedTime().substring(0, 5);
-  Serial.println(formattedTime);
   display.setFont(&FreeMono9pt7b);
-  displayText(formattedTime.c_str(), 18, GxEPD_ALIGN_RIGHT);
+  displayText(getCurrentTime().c_str(), 18, GxEPD_ALIGN_RIGHT);
 
   display.update();
 }
@@ -414,7 +346,39 @@ void showWiFiConnectedScreen() {
     Serial.printf("Could not resolve hostname: %s\n", kostal_hostname.c_str());
   }
 }
+
+/*
+Method to print the reason by which ESP32
+has been awaken from sleep
+*/
+void print_wakeup_reason() {
+  esp_sleep_wakeup_cause_t wakeup_reason;
+
+  wakeup_reason = esp_sleep_get_wakeup_cause();
+
+  switch (wakeup_reason) {
+  case ESP_SLEEP_WAKEUP_EXT0:
+    Serial.println("Wakeup caused by external signal using RTC_IO");
+    break;
+  case ESP_SLEEP_WAKEUP_EXT1:
+    Serial.println("Wakeup caused by external signal using RTC_CNTL");
+    break;
+  case ESP_SLEEP_WAKEUP_TIMER:
+    Serial.println("Wakeup caused by timer");
+    break;
+  case ESP_SLEEP_WAKEUP_TOUCHPAD:
+    Serial.println("Wakeup caused by touchpad");
+    break;
+  case ESP_SLEEP_WAKEUP_ULP:
+    Serial.println("Wakeup caused by ULP program");
+    break;
+  default:
+    Serial.printf("Wakeup was not caused by deep sleep: %d\n", wakeup_reason);
+    wakeUpCounter = 0;
+    break;
+  }
 }
+
 /**
  * @brief
  *
@@ -424,10 +388,14 @@ void setup() {
   while (!Serial) {
   }
 
-  Serial.println(F("-------------------------------------------"));
-  Serial.println(F(" Kostal Plenticore DC/DC converter Monitor "));
-  Serial.println(F("-------------------------------------------"));
+  Serial.println(F(".-----------------------------------------------."));
+  Serial.println(F("|  Kostal Plenticore DC/DC converter Monitor     |"));
+  Serial.println(F("|  https://stritti.github.io/kostal-pv-monitor/  |"));
+  Serial.println(F(" ------------------------------------------------"));
   Serial.println("  wake up counter " + String(++wakeUpCounter));
+
+  //Print the wakeup reason for ESP32
+  print_wakeup_reason();
 
   SPIFFS.begin(true);  // Will format on the first run after failing to mount
 
@@ -456,12 +424,6 @@ void setup() {
 
   // Initialize a NTPClient to get time
   timeClient.begin();
-  // Set offset time in seconds to adjust for your timezone, for example:
-  // GMT +1 = 3600
-  // GMT +8 = 28800
-  // GMT -1 = -3600
-  // GMT 0 = 0
-  timeClient.setTimeOffset(3600);
 
   // Set up ModbusTCP connection
   mb.client();
