@@ -21,7 +21,7 @@
 #include <WiFiSettings.h>
 
 const String  hostname                  = "kostal-monitor";
-const int32_t DATA_UPDATE_DELAY_SECONDS = 60;  // Show result every second
+const int32_t DATA_UPDATE_DELAY_SECONDS = 180;  // Show result every second
 
 #define uS_TO_S_FACTOR 1000000        // Conversion factor for micro seconds to seconds
 RTC_DATA_ATTR int wakeUpCounter = 0;  // RTC counter variable
@@ -433,7 +433,16 @@ void setup() {
   Serial.print(get_float(214));
   Serial.println(F("\u00B0C"));
 
-  writeOwnConsumption();
+  int hour = getHourOfDay();
+  Serial.printf("Current hour: %d\n", hour);
+  if( hour >= 7 && hour <= 23 ) {
+    writeOwnConsumption();
+  } else {
+    display.fillScreen(GxEPD_WHITE);
+    displayText("sleeping until 7.00 ...", 60, GxEPD_ALIGN_CENTER);
+    display.update();
+  }
+
 
   mb.disconnect(remote);            // Close connection and
   mb.dropTransactions();            // Cancel all waiting transactions
@@ -442,7 +451,8 @@ void setup() {
     delay(10);
   }
 
-  WiFi.disconnect();
+  WiFi.disconnect(true);  // Disconnect from the network
+  WiFi.mode(WIFI_OFF);    // Switch WiFi off
 
   Serial.printf("Going to sleep now for %d sec.\n", (DATA_UPDATE_DELAY_SECONDS));
   esp_sleep_enable_timer_wakeup(DATA_UPDATE_DELAY_SECONDS * uS_TO_S_FACTOR);

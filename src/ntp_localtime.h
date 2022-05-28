@@ -31,3 +31,12 @@ static String getCurrentTime() {
 
   return String(buf);
 }
+
+static int getHourOfDay() {
+  // update time
+  while (!timeClient.update()) {
+    timeClient.forceUpdate();
+  }
+  time_t t = currentTZ.toLocal(timeClient.getEpochTime());
+  return hour(t);
+}
