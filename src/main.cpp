@@ -226,7 +226,6 @@ void drawBattery(uint16_t percent, uint16_t y) {
   if (percent > 100) {
     percent = 100;
   }
-  // Note: uint16_t is always >= 0, no need to check < 0
   
   // Calculate battery level (0-5 range for display)
   uint8_t batteryLevel = (percent + 5) / 20;
@@ -586,7 +585,9 @@ void setup() {
 }
 
 /**
- * @brief
- *
+ * @brief Main loop - not used as device operates in deep sleep mode.
+ * 
+ * This function is required by Arduino but never executes because the device
+ * enters deep sleep at the end of setup() and wakes up to restart setup().
  */
 void loop() {}
