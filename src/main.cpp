@@ -129,23 +129,33 @@ bool establishModbusConnection() {
   for (int attempt = 0; attempt < MODBUS_MAX_RETRIES; attempt++) {
     if (attempt > 0) {
       Serial.printf("Modbus connection retry %d/%d\n", attempt + 1, MODBUS_MAX_RETRIES);
-      delay(500 * attempt);  // Exponential backoff
+      // Exponential backoff: 500ms, 1000ms, 2000ms
+      unsigned long backoffDelay = 500 * (1 << attempt);  // Exponential: 500 * 2^attempt
+      delay(backoffDelay);
     }
     
     mb.connect(remote, kostal_modbus_port);
     
-    // Wait for connection to establish
+    // Wait for connection to establish with timeout
     unsigned long connectStart = millis();
-    while (!mb.isConnected(remote) && (millis() - connectStart < MODBUS_CONNECTION_TIMEOUT_MS)) {
+    while (!mb.isConnected(remote)) {
+      if (millis() - connectStart >= MODBUS_CONNECTION_TIMEOUT_MS) {
+        break;  // Timeout
+      }
       mb.task();
+      yield();  // Allow other tasks to run
       delay(10);
     }
     
     if (mb.isConnected(remote)) {
       Serial.println("Modbus connected, waiting for connection to settle...");
-      // Give connection time to stabilize
-      delay(MODBUS_CONNECTION_SETTLE_MS);
-      mb.task();
+      // Give connection time to stabilize with non-blocking approach
+      unsigned long settleStart = millis();
+      while (millis() - settleStart < MODBUS_CONNECTION_SETTLE_MS) {
+        mb.task();
+        yield();
+        delay(10);
+      }
       
       // Verify still connected after settle time
       if (mb.isConnected(remote)) {
@@ -627,8 +637,12 @@ void setup() {
   mb.dropTransactions();            // Cancel all waiting transactions
   
   unsigned long disconnectStart = millis();
-  while (mb.isConnected(remote) && (millis() - disconnectStart < MODBUS_DISCONNECT_TIMEOUT_MS)) {
+  while (mb.isConnected(remote)) {
+    if (millis() - disconnectStart >= MODBUS_DISCONNECT_TIMEOUT_MS) {
+      break;  // Timeout
+    }
     mb.task();
+    yield();
     delay(10);
   }
   
