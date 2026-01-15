@@ -84,7 +84,7 @@ bool cb(Modbus::ResultCode event, uint16_t transactionId, void* data) {  // Call
  */
 float get_float(uint16_t reg) {  // get the float from the Modbus register
   uint16_t numregs = 2;
-  uint16_t value[numregs];
+  uint16_t value[numregs] = {0};  // Initialize to prevent use of uninitialized memory
 
   while (millis() - modbus_query_last < MODBUS_QUERY_DELAY) {
     if (mb.isConnected(remote)) {  // Check if connection to Modbus Slave is established
@@ -94,6 +94,10 @@ float get_float(uint16_t reg) {  // get the float from the Modbus register
   }
 
   if (!mb.isConnected(remote)) {             // Check if connection to Modbus Slave is established
+    if (remote == INADDR_NONE) {
+      Serial.println("Error: Invalid remote IP address");
+      return 0.0f;  // Return safe default value
+    }
     mb.connect(remote, kostal_modbus_port);  // Try to connect if no connection
   }
   uint16_t trans = mb.readHreg(remote, reg, value, numregs, cb, KOSTAL_MODBUS_SLAVE_ID);  // Initiate Read Hreg from Modbus Server
@@ -112,7 +116,7 @@ float get_float(uint16_t reg) {  // get the float from the Modbus register
  * @return uint16_t
  */
 uint16_t get_uint16(uint16_t reg) {  // get the int16 from the Modbus register
-  uint16_t res;
+  uint16_t res = 0;  // Initialize to prevent use of uninitialized memory
 
   while (millis() - modbus_query_last < MODBUS_QUERY_DELAY) {
     if (mb.isConnected(remote)) {  // Check if connection to Modbus Slave is established
@@ -122,6 +126,10 @@ uint16_t get_uint16(uint16_t reg) {  // get the int16 from the Modbus register
   }
 
   if (!mb.isConnected(remote)) {             // Check if connection to Modbus Slave is established
+    if (remote == INADDR_NONE) {
+      Serial.println("Error: Invalid remote IP address");
+      return 0;  // Return safe default value
+    }
     mb.connect(remote, kostal_modbus_port);  // Try to connect if no connection
   }
 
@@ -147,11 +155,11 @@ String getPowerString(float value) {
     value *= -1;  //remove the minus sign
   }
   if (value < 1) {
-    sprintf(buffer, "  0 W");
+    snprintf(buffer, sizeof(buffer), "  0 W");
   } else if (value < 1000) {
-    sprintf(buffer, "%3.0d W", (int)value);
+    snprintf(buffer, sizeof(buffer), "%3d W", (int)value);
   } else {
-    sprintf(buffer, "%2.1f kW", value / 1000);
+    snprintf(buffer, sizeof(buffer), "%2.1f kW", value / 1000);
   }
   return String(buffer);
 }
@@ -163,12 +171,16 @@ String getPowerString(float value) {
  */
 void drawBattery(uint16_t percent, uint16_t y) {
   char buffer[50];
+  // Clamp percent to valid range (0-100)
   if (percent > 100) {
     percent = 100;
-  } else if (percent < 0) {
-    percent = 0;
   }
-  sprintf(buffer, "%d", (percent + 5) / 20);
+  // Note: uint16_t is always >= 0, no need to check < 0
+  
+  // Calculate battery level (0-5 range for display)
+  uint8_t batteryLevel = (percent + 5) / 20;
+  snprintf(buffer, sizeof(buffer), "%d", batteryLevel);
+  
   u8g2_for_adafruit_gfx.setFontMode(0);
   u8g2_for_adafruit_gfx.setForegroundColor(0);
   u8g2_for_adafruit_gfx.setBackgroundColor(1);
@@ -247,7 +259,7 @@ void writeOwnConsumption() {
   displayText(getPowerString(power_battery).c_str(), 102, GxEPD_ALIGN_RIGHT, offset);  // battery power production
 
   char buffer_soc[10];
-  sprintf(buffer_soc, "%3.0d %%", battery_soc);
+  snprintf(buffer_soc, sizeof(buffer_soc), "%3d %%", battery_soc);
   displayText(buffer_soc, 120, GxEPD_ALIGN_RIGHT, offset);  // battery SoC
 
   displayText(getPowerString(power_grid).c_str(), 50, GxEPD_ALIGN_RIGHT, 28);     // grid consumption grid
@@ -256,7 +268,7 @@ void writeOwnConsumption() {
 
   /*
   char buffer_hcr[10];
-  sprintf(buffer_hcr, "%3.0d %%", (int)home_consumption_rate);
+  snprintf(buffer_hcr, sizeof(buffer_hcr), "%3d %%", (int)home_consumption_rate);
   displayText(buffer_hcr, 120, GxEPD_ALIGN_CENTER);
   */
 
@@ -335,6 +347,13 @@ void showWiFiConnectedScreen() {
   Serial.printf("WiFi IP address: %u.%u.%u.%u\n", wIP[0], wIP[1], wIP[2], wIP[3]);
 
   Serial.printf("Connecting to %s\n", kostal_hostname.c_str());
+  
+  // Validate hostname before attempting resolution
+  if (kostal_hostname.length() == 0) {
+    Serial.println("Error: Kostal hostname is empty");
+    return;
+  }
+  
   WiFi.hostByName(kostal_hostname.c_str(), remote);
 
   if (remote != INADDR_NONE) {
@@ -344,6 +363,7 @@ void showWiFiConnectedScreen() {
     mb.connect(remote, kostal_modbus_port);
   } else {
     Serial.printf("Could not resolve hostname: %s\n", kostal_hostname.c_str());
+    Serial.println("Please check network connection and hostname configuration");
   }
 }
 
