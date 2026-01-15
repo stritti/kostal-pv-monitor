@@ -29,6 +29,13 @@ RTC_DATA_ATTR int wakeUpCounter = 0;  // RTC counter variable
 
 #define LED_BUILTIN 2  // built-in LED on TTGO-T5
 
+// Modbus transaction timeout in milliseconds
+const unsigned long MODBUS_TRANSACTION_TIMEOUT_MS = 5000;
+
+// Time range for display updates (7 AM to 11 PM)
+const int DISPLAY_UPDATE_START_HOUR = 7;
+const int DISPLAY_UPDATE_END_HOUR = 23;
+
 WiFiClient theClient;  // Set up a client for the WiFi connection
 IPAddress  remote;     // Address of Modbus Slave device
 
@@ -100,11 +107,23 @@ float get_float(uint16_t reg) {  // get the float from the Modbus register
     }
     mb.connect(remote, kostal_modbus_port);  // Try to connect if no connection
   }
+  
   uint16_t trans = mb.readHreg(remote, reg, value, numregs, cb, KOSTAL_MODBUS_SLAVE_ID);  // Initiate Read Hreg from Modbus Server
-  while (mb.isTransaction(trans)) {                                                       // Check if transaction is active
+  
+  // Add timeout protection for transaction wait loop
+  unsigned long transactionStart = millis();
+  
+  while (mb.isTransaction(trans)) {  // Check if transaction is active
+    if (millis() - transactionStart > MODBUS_TRANSACTION_TIMEOUT_MS) {
+      Serial.printf("Error: Modbus transaction timeout for register 0x%X\n", reg);
+      return 0.0f;  // Return safe default on timeout
+    }
     mb.task();
     delay(10);
   }
+  
+  modbus_query_last = millis();  // Update timestamp for rate limiting
+  
   float float_reconstructed = f_2uint_float(value[0], value[1]);
   return float_reconstructed;
 }
@@ -134,10 +153,20 @@ uint16_t get_uint16(uint16_t reg) {  // get the int16 from the Modbus register
   }
 
   uint16_t trans = mb.readHreg(remote, reg, &res, 1, cb, KOSTAL_MODBUS_SLAVE_ID);  // Initiate Read Hreg from Modbus Server
-  while (mb.isTransaction(trans)) {                                                // Check if transaction is active
+  
+  // Add timeout protection for transaction wait loop
+  unsigned long transactionStart = millis();
+  
+  while (mb.isTransaction(trans)) {  // Check if transaction is active
+    if (millis() - transactionStart > MODBUS_TRANSACTION_TIMEOUT_MS) {
+      Serial.printf("Error: Modbus transaction timeout for register 0x%X\n", reg);
+      return 0;  // Return safe default on timeout
+    }
     mb.task();
     delay(10);
   }
+
+  modbus_query_last = millis();  // Update timestamp for rate limiting
 
   return res;
 }
@@ -339,6 +368,16 @@ void showWiFiConnectionFailedScreen() {
   display.update();
 }
 
+void showModbusConnectionFailedScreen() {
+  display.fillScreen(GxEPD_WHITE);
+  display.setFont(&FreeSans9pt7b);
+  displayText("Kostal Monitor", 18, GxEPD_ALIGN_LEFT);
+  displayText("*** Error ***", 60, GxEPD_ALIGN_CENTER);
+  displayText("Modbus connection failed", 90, GxEPD_ALIGN_LEFT);
+  displayText("Check hostname/IP", 110, GxEPD_ALIGN_LEFT);
+  display.update();
+}
+
 void showWiFiConnectedScreen() {
 
   WiFi.waitForConnectResult();
@@ -351,6 +390,7 @@ void showWiFiConnectedScreen() {
   // Validate hostname before attempting resolution
   if (kostal_hostname.length() == 0) {
     Serial.println("Error: Kostal hostname is empty");
+    showModbusConnectionFailedScreen();
     return;
   }
   
@@ -364,6 +404,7 @@ void showWiFiConnectedScreen() {
   } else {
     Serial.printf("Could not resolve hostname: %s\n", kostal_hostname.c_str());
     Serial.println("Please check network connection and hostname configuration");
+    showModbusConnectionFailedScreen();
   }
 }
 
@@ -455,7 +496,7 @@ void setup() {
 
   int hour = getHourOfDay();
   Serial.printf("Current hour: %d\n", hour);
-  if( hour >= 7 && hour <= 23 ) {
+  if( hour >= DISPLAY_UPDATE_START_HOUR && hour <= DISPLAY_UPDATE_END_HOUR ) {
     writeOwnConsumption();
   } else {
     display.fillScreen(GxEPD_WHITE);
