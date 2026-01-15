@@ -45,8 +45,14 @@ uint16_t kostal_modbus_port;  // port of the Modbus TCP server
 uint32_t modbus_query_last = 0;
 
 /**
- * @brief reconstruct the float from 2 unsigned integers
- *
+ * @brief Reconstruct a float value from two unsigned 16-bit integers.
+ * 
+ * Used to convert Modbus register pairs into floating point values
+ * according to IEEE 754 format.
+ * 
+ * @param uint1 First 16-bit word (lower bytes)
+ * @param uint2 Second 16-bit word (upper bytes)
+ * @return float Reconstructed floating point value
  */
 float f_2uint_float(unsigned int uint1, unsigned int uint2) {
   union f_2uint {
@@ -62,13 +68,14 @@ float f_2uint_float(unsigned int uint1, unsigned int uint2) {
 }
 
 /**
- * @brief Callback og Modbus TCP connection.
- *
- * @param event
- * @param transactionId
- * @param data
- * @return true
- * @return false
+ * @brief Callback for Modbus TCP connection events.
+ * 
+ * Handles connection errors and timeouts by disconnecting and dropping transactions.
+ * 
+ * @param event Result code from Modbus operation
+ * @param transactionId Transaction identifier
+ * @param data Additional data from the transaction
+ * @return true Always returns true to continue operation
  */
 bool cb(Modbus::ResultCode event, uint16_t transactionId, void* data) {  // Callback to monitor errors
 
@@ -84,10 +91,13 @@ bool cb(Modbus::ResultCode event, uint16_t transactionId, void* data) {  // Call
 }
 
 /**
- * @brief Get the float object
- *
- * @param reg
- * @return float
+ * @brief Read a float value from Modbus register.
+ * 
+ * Reads two consecutive holding registers and combines them into a float.
+ * Implements rate limiting, connection validation, and timeout protection.
+ * 
+ * @param reg Modbus register address to read from
+ * @return float The float value read from the registers, or 0.0f on error
  */
 float get_float(uint16_t reg) {  // get the float from the Modbus register
   uint16_t numregs = 2;
@@ -129,10 +139,13 @@ float get_float(uint16_t reg) {  // get the float from the Modbus register
 }
 
 /**
- * @brief Get the uint16 object
- *
- * @param reg
- * @return uint16_t
+ * @brief Read a uint16 value from Modbus register.
+ * 
+ * Reads a single holding register as an unsigned 16-bit integer.
+ * Implements rate limiting, connection validation, and timeout protection.
+ * 
+ * @param reg Modbus register address to read from
+ * @return uint16_t The value read from the register, or 0 on error
  */
 uint16_t get_uint16(uint16_t reg) {  // get the int16 from the Modbus register
   uint16_t res = 0;  // Initialize to prevent use of uninitialized memory
@@ -172,10 +185,15 @@ uint16_t get_uint16(uint16_t reg) {  // get the int16 from the Modbus register
 }
 
 /**
- * @brief Get the Power String object
- *
- * @param value
- * @return String
+ * @brief Format power value as human-readable string.
+ * 
+ * Formats power values with appropriate units:
+ * - Values < 1W: "  0 W"
+ * - Values < 1000W: "XXX W"
+ * - Values >= 1000W: "X.X kW"
+ * 
+ * @param value Power value in watts (negative values are converted to positive)
+ * @return String Formatted power string
  */
 String getPowerString(float value) {
   char buffer[50];
@@ -194,9 +212,13 @@ String getPowerString(float value) {
 }
 
 /**
- * @brief draw battery icon
- *
- * @param SoC of battery in percent (0 - 100)
+ * @brief Draw battery icon with state of charge indicator.
+ * 
+ * Displays a battery icon on the e-paper display with a fill level
+ * corresponding to the battery state of charge (0-100%).
+ * 
+ * @param percent Battery state of charge (0-100%), values are clamped to this range
+ * @param y Vertical position on display
  */
 void drawBattery(uint16_t percent, uint16_t y) {
   char buffer[50];
@@ -218,8 +240,16 @@ void drawBattery(uint16_t percent, uint16_t y) {
 }
 
 /**
- * @brief draw smiley
- *
+ * @brief Draw smiley face based on primary energy source.
+ * 
+ * Displays different emoticons based on where the house is getting most of its power:
+ * - Grid (highest consumption): Sad face
+ * - PV (highest consumption): Cool sunglasses face
+ * - Battery (highest consumption): Happy face
+ * 
+ * @param own_consumption_grid Power consumption from grid in watts
+ * @param own_consumption_pv Power consumption from PV in watts
+ * @param own_consumption_batt Power consumption from battery in watts
  */
 void drawSmiley(float own_consumption_grid, float own_consumption_pv, float own_consumption_batt) {
   uint8_t smiley;
@@ -239,8 +269,11 @@ void drawSmiley(float own_consumption_grid, float own_consumption_pv, float own_
 }
 
 /**
- * @brief
- *
+ * @brief Query Modbus and display power consumption data.
+ * 
+ * Reads all power consumption data from the Kostal inverter via Modbus TCP
+ * and displays it on the e-paper screen with icons, values, and flow arrows.
+ * Shows PV production, battery status, grid consumption, and house consumption.
  */
 void writeOwnConsumption() {
 
@@ -408,10 +441,12 @@ void showWiFiConnectedScreen() {
   }
 }
 
-/*
-Method to print the reason by which ESP32
-has been awaken from sleep
-*/
+/**
+ * @brief Print the reason the ESP32 woke up from deep sleep.
+ * 
+ * Diagnostic function to help debug wake-up issues and power management.
+ * Logs the wake-up cause to serial console and resets counter on first boot.
+ */
 void print_wakeup_reason() {
   esp_sleep_wakeup_cause_t wakeup_reason;
 
@@ -441,12 +476,25 @@ void print_wakeup_reason() {
 }
 
 /**
- * @brief
- *
+ * @brief Setup function - initializes hardware and connects to services.
+ * 
+ * Performs system initialization including:
+ * - Serial communication setup
+ * - Display initialization
+ * - WiFi connection and configuration
+ * - NTP time synchronization
+ * - Modbus TCP connection
+ * - Data query and display update
+ * - Deep sleep configuration
  */
 void setup() {
   Serial.begin(SERIAL_SPEED);
-  while (!Serial) {
+  
+  // Wait for serial with timeout to prevent hanging on battery-powered operation
+  unsigned long serialStart = millis();
+  const unsigned long SERIAL_TIMEOUT_MS = 3000;  // 3 second timeout
+  while (!Serial && (millis() - serialStart < SERIAL_TIMEOUT_MS)) {
+    delay(10);
   }
 
   Serial.println(F(".-----------------------------------------------."));

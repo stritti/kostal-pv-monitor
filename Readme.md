@@ -36,6 +36,35 @@ Project is developed with [PlatformIO](https://platformio.org/).
 
 Communication is based on [Kostal Plenticore Modbus](docs\BA_KOSTAL-Interface-description-MODBUS-TCP_SunSpec_Hybrid.pdf)
 
+## Security and Best Practices
+
+This project implements several IoT security and reliability best practices:
+
+### Memory Safety
+* **Buffer overflow protection**: All string formatting uses `snprintf()` instead of `sprintf()` to prevent buffer overflows
+* **Variable initialization**: All variables are initialized before use to prevent undefined behavior
+* **Input validation**: Hostname and IP addresses are validated before use
+
+### Network Security
+* **Timeout protection**: All network operations (WiFi, NTP, Modbus) have configurable timeouts to prevent infinite loops
+* **Connection validation**: Remote IP addresses and hostnames are validated before attempting connections
+* **Error handling**: Comprehensive error handling with informative error messages for debugging
+
+### Power Optimization
+* **Deep sleep mode**: Device enters deep sleep between readings to conserve battery
+* **Conditional updates**: Display only updates during daylight hours (7 AM - 11 PM) to save power
+* **Rate limiting**: Modbus queries are rate-limited to avoid overwhelming the inverter
+
+### Reliability
+* **Watchdog timers**: Transaction timeouts prevent hanging on failed communications
+* **Retry logic**: NTP synchronization includes retry logic with exponential backoff
+* **Error recovery**: Failed operations return safe default values instead of crashing
+
+### Code Quality
+* **Constants for magic numbers**: All magic numbers replaced with named constants for maintainability
+* **Comprehensive documentation**: All functions have detailed documentation comments
+* **Type safety**: Proper use of unsigned types where negative values are impossible
+
 ## Used Libraries
 
 * adafruit/Adafruit BusIO@^1.11.2
