@@ -32,6 +32,12 @@ RTC_DATA_ATTR int wakeUpCounter = 0;  // RTC counter variable
 // Modbus transaction timeout in milliseconds
 const unsigned long MODBUS_TRANSACTION_TIMEOUT_MS = 5000;
 
+// Modbus connection settings
+const unsigned long MODBUS_CONNECTION_TIMEOUT_MS = 3000;  // Timeout for establishing connection
+const unsigned long MODBUS_DISCONNECT_TIMEOUT_MS = 2000;  // Timeout for disconnect loop
+const unsigned long MODBUS_CONNECTION_SETTLE_MS = 500;    // Wait after connect before first transaction
+const int MODBUS_MAX_RETRIES = 3;                         // Maximum connection retry attempts
+
 // Time range for display updates (7 AM to 11 PM)
 const int DISPLAY_UPDATE_START_HOUR = 7;
 const int DISPLAY_UPDATE_END_HOUR = 23;
@@ -43,6 +49,7 @@ ModbusIP mb;                  //ModbusTCP object
 String   kostal_hostname;     // hostname of the Modbus TCP server
 uint16_t kostal_modbus_port;  // port of the Modbus TCP server
 uint32_t modbus_query_last = 0;
+bool     modbus_connection_stable = false;  // Track if connection is stable
 
 /**
  * @brief Reconstruct a float value from two unsigned 16-bit integers.
@@ -80,14 +87,78 @@ float f_2uint_float(unsigned int uint1, unsigned int uint2) {
 bool cb(Modbus::ResultCode event, uint16_t transactionId, void* data) {  // Callback to monitor errors
 
   if (event == Modbus::EX_TIMEOUT) {  // If Transaction timeout took place
+    Serial.println("Modbus timeout - disconnecting");
     mb.disconnect(remote);            // Close connection to slave and
     mb.dropTransactions();            // Cancel all waiting transactions
+    modbus_connection_stable = false; // Mark connection as unstable
   }
   if (event != Modbus::EX_SUCCESS) {
     Serial.print("Request result: 0x");
     Serial.println(event, HEX);
   }
   return true;
+}
+
+/**
+ * @brief Establish a stable Modbus TCP connection with retry logic.
+ * 
+ * Attempts to connect to the Modbus server with multiple retries and
+ * waits for connection to stabilize before returning.
+ * 
+ * @return true if connection established successfully, false otherwise
+ */
+bool establishModbusConnection() {
+  if (remote == INADDR_NONE) {
+    Serial.println("Error: Invalid remote IP address for Modbus connection");
+    return false;
+  }
+  
+  // If already connected and stable, verify it's still alive
+  if (mb.isConnected(remote) && modbus_connection_stable) {
+    mb.task();  // Process any pending tasks
+    return true;
+  }
+  
+  // Disconnect if previously connected but not stable
+  if (mb.isConnected(remote)) {
+    mb.disconnect(remote);
+    delay(100);
+  }
+  
+  // Try to establish connection with retries
+  for (int attempt = 0; attempt < MODBUS_MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      Serial.printf("Modbus connection retry %d/%d\n", attempt + 1, MODBUS_MAX_RETRIES);
+      delay(500 * attempt);  // Exponential backoff
+    }
+    
+    mb.connect(remote, kostal_modbus_port);
+    
+    // Wait for connection to establish
+    unsigned long connectStart = millis();
+    while (!mb.isConnected(remote) && (millis() - connectStart < MODBUS_CONNECTION_TIMEOUT_MS)) {
+      mb.task();
+      delay(10);
+    }
+    
+    if (mb.isConnected(remote)) {
+      Serial.println("Modbus connected, waiting for connection to settle...");
+      // Give connection time to stabilize
+      delay(MODBUS_CONNECTION_SETTLE_MS);
+      mb.task();
+      
+      // Verify still connected after settle time
+      if (mb.isConnected(remote)) {
+        modbus_connection_stable = true;
+        Serial.println("Modbus connection stable");
+        return true;
+      }
+    }
+  }
+  
+  Serial.println("Failed to establish stable Modbus connection");
+  modbus_connection_stable = false;
+  return false;
 }
 
 /**
@@ -103,19 +174,18 @@ float get_float(uint16_t reg) {  // get the float from the Modbus register
   uint16_t numregs = 2;
   uint16_t value[numregs] = {0};  // Initialize to prevent use of uninitialized memory
 
-  while (millis() - modbus_query_last < MODBUS_QUERY_DELAY) {
-    if (mb.isConnected(remote)) {  // Check if connection to Modbus Slave is established
+  // Rate limiting - only applies if connected
+  if (mb.isConnected(remote)) {
+    while (millis() - modbus_query_last < MODBUS_QUERY_DELAY) {
       mb.task();
       delay(10);
     }
   }
 
-  if (!mb.isConnected(remote)) {             // Check if connection to Modbus Slave is established
-    if (remote == INADDR_NONE) {
-      Serial.println("Error: Invalid remote IP address");
-      return 0.0f;  // Return safe default value
-    }
-    mb.connect(remote, kostal_modbus_port);  // Try to connect if no connection
+  // Ensure we have a stable connection
+  if (!establishModbusConnection()) {
+    Serial.printf("Error: Cannot read register 0x%X - no Modbus connection\n", reg);
+    return 0.0f;
   }
   
   uint16_t trans = mb.readHreg(remote, reg, value, numregs, cb, KOSTAL_MODBUS_SLAVE_ID);  // Initiate Read Hreg from Modbus Server
@@ -126,6 +196,7 @@ float get_float(uint16_t reg) {  // get the float from the Modbus register
   while (mb.isTransaction(trans)) {  // Check if transaction is active
     if (millis() - transactionStart > MODBUS_TRANSACTION_TIMEOUT_MS) {
       Serial.printf("Error: Modbus transaction timeout for register 0x%X\n", reg);
+      modbus_connection_stable = false;  // Mark connection as unstable
       return 0.0f;  // Return safe default on timeout
     }
     mb.task();
@@ -150,19 +221,18 @@ float get_float(uint16_t reg) {  // get the float from the Modbus register
 uint16_t get_uint16(uint16_t reg) {  // get the int16 from the Modbus register
   uint16_t res = 0;  // Initialize to prevent use of uninitialized memory
 
-  while (millis() - modbus_query_last < MODBUS_QUERY_DELAY) {
-    if (mb.isConnected(remote)) {  // Check if connection to Modbus Slave is established
+  // Rate limiting - only applies if connected
+  if (mb.isConnected(remote)) {
+    while (millis() - modbus_query_last < MODBUS_QUERY_DELAY) {
       mb.task();
       delay(10);
     }
   }
 
-  if (!mb.isConnected(remote)) {             // Check if connection to Modbus Slave is established
-    if (remote == INADDR_NONE) {
-      Serial.println("Error: Invalid remote IP address");
-      return 0;  // Return safe default value
-    }
-    mb.connect(remote, kostal_modbus_port);  // Try to connect if no connection
+  // Ensure we have a stable connection
+  if (!establishModbusConnection()) {
+    Serial.printf("Error: Cannot read register 0x%X - no Modbus connection\n", reg);
+    return 0;
   }
 
   uint16_t trans = mb.readHreg(remote, reg, &res, 1, cb, KOSTAL_MODBUS_SLAVE_ID);  // Initiate Read Hreg from Modbus Server
@@ -173,6 +243,7 @@ uint16_t get_uint16(uint16_t reg) {  // get the int16 from the Modbus register
   while (mb.isTransaction(trans)) {  // Check if transaction is active
     if (millis() - transactionStart > MODBUS_TRANSACTION_TIMEOUT_MS) {
       Serial.printf("Error: Modbus transaction timeout for register 0x%X\n", reg);
+      modbus_connection_stable = false;  // Mark connection as unstable
       return 0;  // Return safe default on timeout
     }
     mb.task();
@@ -417,7 +488,7 @@ void showWiFiConnectedScreen() {
   IPAddress wIP = WiFi.localIP();
   Serial.printf("WiFi IP address: %u.%u.%u.%u\n", wIP[0], wIP[1], wIP[2], wIP[3]);
 
-  Serial.printf("Connecting to %s\n", kostal_hostname.c_str());
+  Serial.printf("Resolving hostname: %s\n", kostal_hostname.c_str());
   
   // Validate hostname before attempting resolution
   if (kostal_hostname.length() == 0) {
@@ -429,10 +500,8 @@ void showWiFiConnectedScreen() {
   WiFi.hostByName(kostal_hostname.c_str(), remote);
 
   if (remote != INADDR_NONE) {
-    Serial.printf("Connecting to kostal converter: %s (IP: %u.%u.%u.%u)\n", kostal_hostname.c_str(), remote[0], remote[1],
-                  remote[2], remote[3]);
-
-    mb.connect(remote, kostal_modbus_port);
+    Serial.printf("Resolved to IP: %u.%u.%u.%u\n", remote[0], remote[1], remote[2], remote[3]);
+    Serial.println("Modbus connection will be established on first read");
   } else {
     Serial.printf("Could not resolve hostname: %s\n", kostal_hostname.c_str());
     Serial.println("Please check network connection and hostname configuration");
@@ -552,11 +621,21 @@ void setup() {
   }
 
 
+  // Disconnect Modbus with timeout protection
+  Serial.println("Disconnecting Modbus...");
   mb.disconnect(remote);            // Close connection and
   mb.dropTransactions();            // Cancel all waiting transactions
-  while (mb.isConnected(remote)) {  // Check if connection to Modbus Slave is established and wait until it is closed
+  
+  unsigned long disconnectStart = millis();
+  while (mb.isConnected(remote) && (millis() - disconnectStart < MODBUS_DISCONNECT_TIMEOUT_MS)) {
     mb.task();
     delay(10);
+  }
+  
+  if (mb.isConnected(remote)) {
+    Serial.println("Warning: Modbus disconnect timeout - forcing cleanup");
+  } else {
+    Serial.println("Modbus disconnected successfully");
   }
 
   WiFi.disconnect(true);  // Disconnect from the network
