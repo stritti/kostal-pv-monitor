@@ -35,7 +35,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.platformio
-          key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini') }}
+          key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini', '.pio/libdeps/**') }}
           restore-keys: |
             ${{ runner.os }}-platformio-
       - name: Set up Python
