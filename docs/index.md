@@ -1,23 +1,31 @@
 ---
-home: true
-heroImage: /img/kostal-pv-monitor.jpg
-tagline: ESP32 based Device to monitor Power Consumption of Kostal Plenticore Converters
+layout: home
+
+hero:
+  name: "Kostal PV Monitor"
+  text: "ESP32 based Device"
+  tagline: Monitor Power Consumption of Kostal Plenticore Converters
+  image:
+    src: /img/kostal-pv-monitor.jpg
+    alt: Kostal PV Monitor Gadget
+  actions:
+    - theme: brand
+      text: Get Started
+      link: /#setup
+    - theme: alt
+      text: View on GitHub
+      link: https://github.com/stritti/kostal-pv-monitor
 
 features:
-  - title: ESP32 based E-Ink Device
-    details:
-      2,13" E-Ink Display with 128x64 pixel resolution showing data with very low energy
-      consumption.
-  - title: Easy Power Monitoring
-    details:
-      The device is powered by a LiPo battery and could be placed anywhere.
-      Data is transfered using WiFi.
-  - title: Modbus
-    details:
-      Communication is based on official Kostal Plenticore Modbus protocol to load data from Converter.
-
-footer: <div>MIT Licensed | Copyright 2022-present | <a href="https://twitter.com/_stritti_">Stephan Strittmatter</a></div>
-footerHtml: true
+  - icon: 📱
+    title: ESP32 based E-Ink Device
+    details: 2,13" E-Ink Display with 128x64 pixel resolution showing data with very low energy consumption.
+  - icon: ⚡
+    title: Easy Power Monitoring
+    details: The device is powered by a LiPo battery and could be placed anywhere. Data is transfered using WiFi.
+  - icon: 🔌
+    title: Modbus
+    details: Communication is based on official Kostal Plenticore Modbus protocol to load data from Converter.
 ---
 
 # Power Monitor for Kostal Plenticore Converter

@@ -79,7 +79,7 @@ This project implements several IoT security and reliability best practices:
 * madpilot/mDNSResolver@^0.3
 * jchristensen/Timezone@^1.2.4
 
-* vuepress: ^2.0.0-rc.18 (for documentation)
+* VitePress: ^1.5.0 (for documentation)
 
 ## Build Configuration
 
