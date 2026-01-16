@@ -9,12 +9,17 @@ on: [push]
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    
+    # Security: Limit GITHUB_TOKEN permissions to minimum required
+    permissions:
+      contents: write  # Needed for gh-pages deployment
+    
     steps:
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v4
 
       - name: vuepress-deploy
-        uses: jenkey2011/vuepress-deploy@master
+        uses: jenkey2011/vuepress-deploy@v1.6.0
         env:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           TARGET_REPO: stritti/kostal-pv-monitor

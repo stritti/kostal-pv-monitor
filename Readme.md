@@ -67,17 +67,25 @@ This project implements several IoT security and reliability best practices:
 
 ## Used Libraries
 
-* adafruit/Adafruit BusIO@^1.11.2
-* adafruit/Adafruit GFX Library@^1.10.13
-* zinggjm/GxEPD@^3.1.1
-* emelianov/modbus-esp8266@^4.0.0
+* adafruit/Adafruit BusIO@^1.16.1
+* adafruit/Adafruit GFX Library@^1.11.11
+* zinggjm/GxEPD@^3.1.5
+* emelianov/modbus-esp8266@^4.1.0
 * juerd/ESP-WiFiSettings@^3.8.0
-* me-no-dev/AsyncTCP@^1.1.1
-* olikraus/U8g2@^2.32.10
+* me-no-dev/AsyncTCP@^1.1.4
+* olikraus/U8g2@^2.35.30
 * olikraus/U8g2_for_Adafruit_GFX@^1.8.0
-* arduino-libraries/NTPClient@^3.1.0
+* arduino-libraries/NTPClient@^3.2.1
+* madpilot/mDNSResolver@^0.3
+* jchristensen/Timezone@^1.2.4
 
-* vuepress: <https://vuepress.vuejs.org/> (for documentation)
+* vuepress: ^2.0.0-rc.18 (for documentation)
+
+## Build Configuration
+
+The project includes two build environments:
+* **ttygo-t5** (default): Optimized release build with size optimization (-Os)
+* **ttygo-t5-debug**: Debug build with verbose logging for development
 
 ## Credits
 
