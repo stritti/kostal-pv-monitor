@@ -50,6 +50,15 @@ This project implements several IoT security and reliability best practices:
 * **Connection validation**: Remote IP addresses and hostnames are validated before attempting connections
 * **Error handling**: Comprehensive error handling with informative error messages for debugging
 
+### Modbus Best Practices
+* **Rate limiting**: Minimum 5-second delay between Modbus query batches to avoid overwhelming the inverter
+* **Inter-query delay**: 100ms delay between individual register reads to prevent burst traffic
+* **Connection reuse**: Maintains stable connection during read operations, then closes gracefully
+* **Retry logic**: Automatic reconnection with exponential backoff (500ms → 1s → 2s) for robustness
+* **Proper cleanup**: Connection is properly closed after all reads to free inverter resources
+* **Transaction timeouts**: 5-second timeout per transaction prevents hanging on communication issues
+* **Graceful disconnect**: Ensures proper TCP connection teardown to avoid resource leaks on inverter side
+
 ### Power Optimization
 * **Deep sleep mode**: Device enters deep sleep between readings to conserve battery
 * **Conditional updates**: Display only updates during daylight hours (7 AM - 11 PM) to save power

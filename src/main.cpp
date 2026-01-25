@@ -100,6 +100,38 @@ bool cb(Modbus::ResultCode event, uint16_t transactionId, void* data) {  // Call
 }
 
 /**
+ * @brief Properly close Modbus connection.
+ * 
+ * Cleanly disconnects from the Modbus server to free up resources
+ * and be respectful to the remote device. Should be called after
+ * completing all Modbus read operations.
+ */
+void closeModbusConnection() {
+  if (mb.isConnected(remote)) {
+    Serial.println("Closing Modbus connection gracefully...");
+    mb.disconnect(remote);
+    mb.dropTransactions();
+    
+    unsigned long disconnectStart = millis();
+    while (mb.isConnected(remote)) {
+      if (millis() - disconnectStart >= MODBUS_DISCONNECT_TIMEOUT_MS) {
+        Serial.println("Warning: Modbus disconnect timeout");
+        break;
+      }
+      mb.task();
+      yield();
+      delay(10);
+    }
+    
+    modbus_connection_stable = false;
+    
+    if (!mb.isConnected(remote)) {
+      Serial.println("Modbus connection closed successfully");
+    }
+  }
+}
+
+/**
  * @brief Establish a stable Modbus TCP connection with retry logic.
  * 
  * Attempts to connect to the Modbus server with multiple retries and
@@ -176,6 +208,7 @@ bool establishModbusConnection() {
  * 
  * Reads two consecutive holding registers and combines them into a float.
  * Implements rate limiting, connection validation, and timeout protection.
+ * Adds a small delay between reads to avoid overwhelming the Modbus server.
  * 
  * @param reg Modbus register address to read from
  * @return float The float value read from the registers, or 0.0f on error
@@ -215,6 +248,9 @@ float get_float(uint16_t reg) {  // get the float from the Modbus register
   
   modbus_query_last = millis();  // Update timestamp for rate limiting
   
+  // Small delay between individual register reads to avoid burst traffic
+  delay(MODBUS_INTER_QUERY_DELAY);
+  
   float float_reconstructed = f_2uint_float(value[0], value[1]);
   return float_reconstructed;
 }
@@ -224,6 +260,7 @@ float get_float(uint16_t reg) {  // get the float from the Modbus register
  * 
  * Reads a single holding register as an unsigned 16-bit integer.
  * Implements rate limiting, connection validation, and timeout protection.
+ * Adds a small delay between reads to avoid overwhelming the Modbus server.
  * 
  * @param reg Modbus register address to read from
  * @return uint16_t The value read from the register, or 0 on error
@@ -261,6 +298,9 @@ uint16_t get_uint16(uint16_t reg) {  // get the int16 from the Modbus register
   }
 
   modbus_query_last = millis();  // Update timestamp for rate limiting
+  
+  // Small delay between individual register reads to avoid burst traffic
+  delay(MODBUS_INTER_QUERY_DELAY);
 
   return res;
 }
@@ -458,6 +498,10 @@ void writeOwnConsumption() {
   displayText(getCurrentTime().c_str(), 18, GxEPD_ALIGN_RIGHT);
 
   display.update();
+  
+  // Close Modbus connection after all reads are complete to free resources
+  // and be respectful to the remote Modbus server
+  closeModbusConnection();
 }
 
 void showSetupScreen() {
