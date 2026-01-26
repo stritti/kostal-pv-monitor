@@ -114,7 +114,8 @@ void closeModbusConnection() {
     
     unsigned long disconnectStart = millis();
     while (mb.isConnected(remote)) {
-      if (millis() - disconnectStart >= MODBUS_DISCONNECT_TIMEOUT_MS) {
+      // Overflow-safe timeout comparison using unsigned arithmetic wraparound
+      if ((millis() - disconnectStart) >= MODBUS_DISCONNECT_TIMEOUT_MS) {
         Serial.println("Warning: Modbus disconnect timeout");
         break;
       }
@@ -171,7 +172,8 @@ bool establishModbusConnection() {
     // Wait for connection to establish with timeout
     unsigned long connectStart = millis();
     while (!mb.isConnected(remote)) {
-      if (millis() - connectStart >= MODBUS_CONNECTION_TIMEOUT_MS) {
+      // Overflow-safe timeout comparison using unsigned arithmetic wraparound
+      if ((millis() - connectStart) >= MODBUS_CONNECTION_TIMEOUT_MS) {
         break;  // Timeout
       }
       mb.task();
@@ -237,7 +239,8 @@ float get_float(uint16_t reg) {  // get the float from the Modbus register
   unsigned long transactionStart = millis();
   
   while (mb.isTransaction(trans)) {  // Check if transaction is active
-    if (millis() - transactionStart > MODBUS_TRANSACTION_TIMEOUT_MS) {
+    // Overflow-safe timeout comparison using unsigned arithmetic wraparound
+    if ((millis() - transactionStart) >= MODBUS_TRANSACTION_TIMEOUT_MS) {
       Serial.printf("Error: Modbus transaction timeout for register 0x%X\n", reg);
       modbus_connection_stable = false;  // Mark connection as unstable
       return 0.0f;  // Return safe default on timeout
@@ -288,7 +291,8 @@ uint16_t get_uint16(uint16_t reg) {  // get the int16 from the Modbus register
   unsigned long transactionStart = millis();
   
   while (mb.isTransaction(trans)) {  // Check if transaction is active
-    if (millis() - transactionStart > MODBUS_TRANSACTION_TIMEOUT_MS) {
+    // Overflow-safe timeout comparison using unsigned arithmetic wraparound
+    if ((millis() - transactionStart) >= MODBUS_TRANSACTION_TIMEOUT_MS) {
       Serial.printf("Error: Modbus transaction timeout for register 0x%X\n", reg);
       modbus_connection_stable = false;  // Mark connection as unstable
       return 0;  // Return safe default on timeout
@@ -325,6 +329,7 @@ String getPowerString(float value) {
   if (value < 1) {
     snprintf(buffer, sizeof(buffer), "  0 W");
   } else if (value < 1000) {
+    // Safe to use %3d here because value < 1000 is guaranteed by the condition
     snprintf(buffer, sizeof(buffer), "%3d W", (int)value);
   } else {
     snprintf(buffer, sizeof(buffer), "%2.1f kW", value / 1000);
@@ -615,7 +620,8 @@ void setup() {
   // Wait for serial with timeout to prevent hanging on battery-powered operation
   unsigned long serialStart = millis();
   const unsigned long SERIAL_TIMEOUT_MS = 3000;  // 3 second timeout
-  while (!Serial && (millis() - serialStart < SERIAL_TIMEOUT_MS)) {
+  // Overflow-safe timeout comparison using unsigned arithmetic wraparound
+  while (!Serial && ((millis() - serialStart) < SERIAL_TIMEOUT_MS)) {
     delay(10);
   }
 
@@ -682,7 +688,8 @@ void setup() {
   
   unsigned long disconnectStart = millis();
   while (mb.isConnected(remote)) {
-    if (millis() - disconnectStart >= MODBUS_DISCONNECT_TIMEOUT_MS) {
+    // Overflow-safe timeout comparison using unsigned arithmetic wraparound
+    if ((millis() - disconnectStart) >= MODBUS_DISCONNECT_TIMEOUT_MS) {
       break;  // Timeout
     }
     mb.task();
