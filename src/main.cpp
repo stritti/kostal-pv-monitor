@@ -329,8 +329,8 @@ String getPowerString(float value) {
   if (value < 1) {
     snprintf(buffer, sizeof(buffer), "  0 W");
   } else if (value < 1000) {
-    // Safe to use %3d here because value < 1000 is guaranteed by the condition
-    snprintf(buffer, sizeof(buffer), "%3d W", (int)value);
+    // Use %3.0f for consistency - no decimal places, minimum 3 character width
+    snprintf(buffer, sizeof(buffer), "%3.0f W", value);
   } else {
     snprintf(buffer, sizeof(buffer), "%2.1f kW", value / 1000);
   }
