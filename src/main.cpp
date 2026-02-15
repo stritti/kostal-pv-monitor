@@ -225,7 +225,8 @@ float get_float(uint16_t reg) {  // get the float from the Modbus register
 
   // Rate limiting - only applies if connected
   if (mb.isConnected(remote)) {
-    while (millis() - modbus_query_last < MODBUS_QUERY_DELAY) {
+    // Overflow-safe rate limiting check using unsigned arithmetic
+    while ((millis() - modbus_query_last) < MODBUS_QUERY_DELAY) {
       mb.task();
       delay(10);
     }
@@ -277,7 +278,8 @@ uint16_t get_uint16(uint16_t reg) {  // get the int16 from the Modbus register
 
   // Rate limiting - only applies if connected
   if (mb.isConnected(remote)) {
-    while (millis() - modbus_query_last < MODBUS_QUERY_DELAY) {
+    // Overflow-safe rate limiting check using unsigned arithmetic
+    while ((millis() - modbus_query_last) < MODBUS_QUERY_DELAY) {
       mb.task();
       delay(10);
     }
