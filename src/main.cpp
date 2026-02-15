@@ -29,6 +29,19 @@ RTC_DATA_ATTR int wakeUpCounter = 0;  // RTC counter variable
 
 #define LED_BUILTIN 2  // built-in LED on TTGO-T5
 
+// Modbus transaction timeout in milliseconds
+const unsigned long MODBUS_TRANSACTION_TIMEOUT_MS = 5000;
+
+// Modbus connection settings
+const unsigned long MODBUS_CONNECTION_TIMEOUT_MS = 3000;  // Timeout for establishing connection
+const unsigned long MODBUS_DISCONNECT_TIMEOUT_MS = 2000;  // Timeout for disconnect loop
+const unsigned long MODBUS_CONNECTION_SETTLE_MS = 500;    // Wait after connect before first transaction
+const int MODBUS_MAX_RETRIES = 3;                         // Maximum connection retry attempts
+
+// Time range for display updates (7 AM to 11 PM)
+const int DISPLAY_UPDATE_START_HOUR = 7;
+const int DISPLAY_UPDATE_END_HOUR = 23;
+
 WiFiClient theClient;  // Set up a client for the WiFi connection
 IPAddress  remote;     // Address of Modbus Slave device
 
@@ -36,10 +49,17 @@ ModbusIP mb;                  //ModbusTCP object
 String   kostal_hostname;     // hostname of the Modbus TCP server
 uint16_t kostal_modbus_port;  // port of the Modbus TCP server
 uint32_t modbus_query_last = 0;
+bool     modbus_connection_stable = false;  // Track if connection is stable
 
 /**
- * @brief reconstruct the float from 2 unsigned integers
- *
+ * @brief Reconstruct a float value from two unsigned 16-bit integers.
+ * 
+ * Used to convert Modbus register pairs into floating point values
+ * according to IEEE 754 format.
+ * 
+ * @param uint1 First 16-bit word (lower bytes)
+ * @param uint2 Second 16-bit word (upper bytes)
+ * @return float Reconstructed floating point value
  */
 float f_2uint_float(unsigned int uint1, unsigned int uint2) {
   union f_2uint {
@@ -55,19 +75,22 @@ float f_2uint_float(unsigned int uint1, unsigned int uint2) {
 }
 
 /**
- * @brief Callback og Modbus TCP connection.
- *
- * @param event
- * @param transactionId
- * @param data
- * @return true
- * @return false
+ * @brief Callback for Modbus TCP connection events.
+ * 
+ * Handles connection errors and timeouts by disconnecting and dropping transactions.
+ * 
+ * @param event Result code from Modbus operation
+ * @param transactionId Transaction identifier
+ * @param data Additional data from the transaction
+ * @return true Always returns true to continue operation
  */
 bool cb(Modbus::ResultCode event, uint16_t transactionId, void* data) {  // Callback to monitor errors
 
   if (event == Modbus::EX_TIMEOUT) {  // If Transaction timeout took place
+    Serial.println("Modbus timeout - disconnecting");
     mb.disconnect(remote);            // Close connection to slave and
     mb.dropTransactions();            // Cancel all waiting transactions
+    modbus_connection_stable = false; // Mark connection as unstable
   }
   if (event != Modbus::EX_SUCCESS) {
     Serial.print("Request result: 0x");
@@ -77,68 +100,231 @@ bool cb(Modbus::ResultCode event, uint16_t transactionId, void* data) {  // Call
 }
 
 /**
- * @brief Get the float object
- *
- * @param reg
- * @return float
+ * @brief Properly close Modbus connection.
+ * 
+ * Cleanly disconnects from the Modbus server to free up resources
+ * and be respectful to the remote device. Should be called after
+ * completing all Modbus read operations.
+ */
+void closeModbusConnection() {
+  if (mb.isConnected(remote)) {
+    Serial.println("Closing Modbus connection gracefully...");
+    mb.disconnect(remote);
+    mb.dropTransactions();
+    
+    unsigned long disconnectStart = millis();
+    while (mb.isConnected(remote)) {
+      // Overflow-safe timeout comparison using unsigned arithmetic wraparound
+      if ((millis() - disconnectStart) >= MODBUS_DISCONNECT_TIMEOUT_MS) {
+        Serial.println("Warning: Modbus disconnect timeout");
+        break;
+      }
+      mb.task();
+      yield();
+      delay(10);
+    }
+    
+    modbus_connection_stable = false;
+    
+    if (!mb.isConnected(remote)) {
+      Serial.println("Modbus connection closed successfully");
+    }
+  }
+}
+
+/**
+ * @brief Establish a stable Modbus TCP connection with retry logic.
+ * 
+ * Attempts to connect to the Modbus server with multiple retries and
+ * waits for connection to stabilize before returning.
+ * 
+ * @return true if connection established successfully, false otherwise
+ */
+bool establishModbusConnection() {
+  if (remote == INADDR_NONE) {
+    Serial.println("Error: Invalid remote IP address for Modbus connection");
+    return false;
+  }
+  
+  // If already connected and stable, verify it's still alive
+  if (mb.isConnected(remote) && modbus_connection_stable) {
+    mb.task();  // Process any pending tasks
+    return true;
+  }
+  
+  // Disconnect if previously connected but not stable
+  if (mb.isConnected(remote)) {
+    mb.disconnect(remote);
+    delay(100);
+  }
+  
+  // Try to establish connection with retries
+  for (int attempt = 0; attempt < MODBUS_MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      Serial.printf("Modbus connection retry %d/%d\n", attempt + 1, MODBUS_MAX_RETRIES);
+      // Exponential backoff: 500ms, 1000ms, 2000ms
+      unsigned long backoffDelay = 500 * (1 << attempt);  // Exponential: 500 * 2^attempt
+      delay(backoffDelay);
+    }
+    
+    mb.connect(remote, kostal_modbus_port);
+    
+    // Wait for connection to establish with timeout
+    unsigned long connectStart = millis();
+    while (!mb.isConnected(remote)) {
+      // Overflow-safe timeout comparison using unsigned arithmetic wraparound
+      if ((millis() - connectStart) >= MODBUS_CONNECTION_TIMEOUT_MS) {
+        break;  // Timeout
+      }
+      mb.task();
+      yield();  // Allow other tasks to run
+      delay(10);
+    }
+    
+    if (mb.isConnected(remote)) {
+      Serial.println("Modbus connected, waiting for connection to settle...");
+      // Give connection time to stabilize with non-blocking approach
+      unsigned long settleStart = millis();
+      while (true) {
+        // Overflow-safe timeout comparison using unsigned arithmetic wraparound
+        if ((millis() - settleStart) >= MODBUS_CONNECTION_SETTLE_MS) {
+          break;
+        }
+        mb.task();
+        yield();
+        delay(10);
+      }
+      
+      // Verify still connected after settle time
+      if (mb.isConnected(remote)) {
+        modbus_connection_stable = true;
+        Serial.println("Modbus connection stable");
+        return true;
+      }
+    }
+  }
+  
+  Serial.println("Failed to establish stable Modbus connection");
+  modbus_connection_stable = false;
+  return false;
+}
+
+/**
+ * @brief Read a float value from Modbus register.
+ * 
+ * Reads two consecutive holding registers and combines them into a float.
+ * Implements rate limiting, connection validation, and timeout protection.
+ * Adds a small delay between reads to avoid overwhelming the Modbus server.
+ * 
+ * @param reg Modbus register address to read from
+ * @return float The float value read from the registers, or 0.0f on error
  */
 float get_float(uint16_t reg) {  // get the float from the Modbus register
   uint16_t numregs = 2;
-  uint16_t value[numregs];
+  uint16_t value[numregs] = {0};  // Initialize to prevent use of uninitialized memory
 
-  while (millis() - modbus_query_last < MODBUS_QUERY_DELAY) {
-    if (mb.isConnected(remote)) {  // Check if connection to Modbus Slave is established
+  // Rate limiting - only applies if connected
+  if (mb.isConnected(remote)) {
+    // Overflow-safe rate limiting check using unsigned arithmetic
+    while ((millis() - modbus_query_last) < MODBUS_QUERY_DELAY) {
       mb.task();
       delay(10);
     }
   }
 
-  if (!mb.isConnected(remote)) {             // Check if connection to Modbus Slave is established
-    mb.connect(remote, kostal_modbus_port);  // Try to connect if no connection
+  // Ensure we have a stable connection
+  if (!establishModbusConnection()) {
+    Serial.printf("Error: Cannot read register 0x%X - no Modbus connection\n", reg);
+    return 0.0f;
   }
+  
   uint16_t trans = mb.readHreg(remote, reg, value, numregs, cb, KOSTAL_MODBUS_SLAVE_ID);  // Initiate Read Hreg from Modbus Server
-  while (mb.isTransaction(trans)) {                                                       // Check if transaction is active
+  
+  // Add timeout protection for transaction wait loop
+  unsigned long transactionStart = millis();
+  
+  while (mb.isTransaction(trans)) {  // Check if transaction is active
+    // Overflow-safe timeout comparison using unsigned arithmetic wraparound
+    if ((millis() - transactionStart) >= MODBUS_TRANSACTION_TIMEOUT_MS) {
+      Serial.printf("Error: Modbus transaction timeout for register 0x%X\n", reg);
+      modbus_connection_stable = false;  // Mark connection as unstable
+      return 0.0f;  // Return safe default on timeout
+    }
     mb.task();
     delay(10);
   }
+  
+  modbus_query_last = millis();  // Update timestamp for rate limiting
+  
+  // Small delay between individual register reads to avoid burst traffic
+  delay(MODBUS_INTER_QUERY_DELAY);
+  
   float float_reconstructed = f_2uint_float(value[0], value[1]);
   return float_reconstructed;
 }
 
 /**
- * @brief Get the uint16 object
- *
- * @param reg
- * @return uint16_t
+ * @brief Read a uint16 value from Modbus register.
+ * 
+ * Reads a single holding register as an unsigned 16-bit integer.
+ * Implements rate limiting, connection validation, and timeout protection.
+ * Adds a small delay between reads to avoid overwhelming the Modbus server.
+ * 
+ * @param reg Modbus register address to read from
+ * @return uint16_t The value read from the register, or 0 on error
  */
 uint16_t get_uint16(uint16_t reg) {  // get the int16 from the Modbus register
-  uint16_t res;
+  uint16_t res = 0;  // Initialize to prevent use of uninitialized memory
 
-  while (millis() - modbus_query_last < MODBUS_QUERY_DELAY) {
-    if (mb.isConnected(remote)) {  // Check if connection to Modbus Slave is established
+  // Rate limiting - only applies if connected
+  if (mb.isConnected(remote)) {
+    // Overflow-safe rate limiting check using unsigned arithmetic
+    while ((millis() - modbus_query_last) < MODBUS_QUERY_DELAY) {
       mb.task();
       delay(10);
     }
   }
 
-  if (!mb.isConnected(remote)) {             // Check if connection to Modbus Slave is established
-    mb.connect(remote, kostal_modbus_port);  // Try to connect if no connection
+  // Ensure we have a stable connection
+  if (!establishModbusConnection()) {
+    Serial.printf("Error: Cannot read register 0x%X - no Modbus connection\n", reg);
+    return 0;
   }
 
   uint16_t trans = mb.readHreg(remote, reg, &res, 1, cb, KOSTAL_MODBUS_SLAVE_ID);  // Initiate Read Hreg from Modbus Server
-  while (mb.isTransaction(trans)) {                                                // Check if transaction is active
+  
+  // Add timeout protection for transaction wait loop
+  unsigned long transactionStart = millis();
+  
+  while (mb.isTransaction(trans)) {  // Check if transaction is active
+    // Overflow-safe timeout comparison using unsigned arithmetic wraparound
+    if ((millis() - transactionStart) >= MODBUS_TRANSACTION_TIMEOUT_MS) {
+      Serial.printf("Error: Modbus transaction timeout for register 0x%X\n", reg);
+      modbus_connection_stable = false;  // Mark connection as unstable
+      return 0;  // Return safe default on timeout
+    }
     mb.task();
     delay(10);
   }
+
+  modbus_query_last = millis();  // Update timestamp for rate limiting
+  
+  // Small delay between individual register reads to avoid burst traffic
+  delay(MODBUS_INTER_QUERY_DELAY);
 
   return res;
 }
 
 /**
- * @brief Get the Power String object
- *
- * @param value
- * @return String
+ * @brief Format power value as human-readable string.
+ * 
+ * Formats power values with appropriate units:
+ * - Values < 1W: "  0 W"
+ * - Values < 1000W: "XXX W"
+ * - Values >= 1000W: "X.X kW"
+ * 
+ * @param value Power value in watts (negative values are converted to positive)
+ * @return String Formatted power string
  */
 String getPowerString(float value) {
   char buffer[50];
@@ -147,28 +333,36 @@ String getPowerString(float value) {
     value *= -1;  //remove the minus sign
   }
   if (value < 1) {
-    sprintf(buffer, "  0 W");
+    snprintf(buffer, sizeof(buffer), "  0 W");
   } else if (value < 1000) {
-    sprintf(buffer, "%3.0d W", (int)value);
+    // Use %3.0f for consistency - no decimal places, minimum 3 character width
+    snprintf(buffer, sizeof(buffer), "%3.0f W", value);
   } else {
-    sprintf(buffer, "%2.1f kW", value / 1000);
+    snprintf(buffer, sizeof(buffer), "%2.1f kW", value / 1000);
   }
   return String(buffer);
 }
 
 /**
- * @brief draw battery icon
- *
- * @param SoC of battery in percent (0 - 100)
+ * @brief Draw battery icon with state of charge indicator.
+ * 
+ * Displays a battery icon on the e-paper display with a fill level
+ * corresponding to the battery state of charge (0-100%).
+ * 
+ * @param percent Battery state of charge (0-100%), values are clamped to this range
+ * @param y Vertical position on display
  */
 void drawBattery(uint16_t percent, uint16_t y) {
   char buffer[50];
+  // Clamp percent to valid range (0-100)
   if (percent > 100) {
     percent = 100;
-  } else if (percent < 0) {
-    percent = 0;
   }
-  sprintf(buffer, "%d", (percent + 5) / 20);
+  
+  // Calculate battery level (0-5 range for display)
+  uint8_t batteryLevel = (percent + 5) / 20;
+  snprintf(buffer, sizeof(buffer), "%d", batteryLevel);
+  
   u8g2_for_adafruit_gfx.setFontMode(0);
   u8g2_for_adafruit_gfx.setForegroundColor(0);
   u8g2_for_adafruit_gfx.setBackgroundColor(1);
@@ -177,8 +371,16 @@ void drawBattery(uint16_t percent, uint16_t y) {
 }
 
 /**
- * @brief draw smiley
- *
+ * @brief Draw smiley face based on primary energy source.
+ * 
+ * Displays different emoticons based on where the house is getting most of its power:
+ * - Grid (highest consumption): Sad face
+ * - PV (highest consumption): Cool sunglasses face
+ * - Battery (highest consumption): Happy face
+ * 
+ * @param own_consumption_grid Power consumption from grid in watts
+ * @param own_consumption_pv Power consumption from PV in watts
+ * @param own_consumption_batt Power consumption from battery in watts
  */
 void drawSmiley(float own_consumption_grid, float own_consumption_pv, float own_consumption_batt) {
   uint8_t smiley;
@@ -198,8 +400,11 @@ void drawSmiley(float own_consumption_grid, float own_consumption_pv, float own_
 }
 
 /**
- * @brief
- *
+ * @brief Query Modbus and display power consumption data.
+ * 
+ * Reads all power consumption data from the Kostal inverter via Modbus TCP
+ * and displays it on the e-paper screen with icons, values, and flow arrows.
+ * Shows PV production, battery status, grid consumption, and house consumption.
  */
 void writeOwnConsumption() {
 
@@ -247,7 +452,7 @@ void writeOwnConsumption() {
   displayText(getPowerString(power_battery).c_str(), 102, GxEPD_ALIGN_RIGHT, offset);  // battery power production
 
   char buffer_soc[10];
-  sprintf(buffer_soc, "%3.0d %%", battery_soc);
+  snprintf(buffer_soc, sizeof(buffer_soc), "%3d %%", battery_soc);
   displayText(buffer_soc, 120, GxEPD_ALIGN_RIGHT, offset);  // battery SoC
 
   displayText(getPowerString(power_grid).c_str(), 50, GxEPD_ALIGN_RIGHT, 28);     // grid consumption grid
@@ -256,7 +461,7 @@ void writeOwnConsumption() {
 
   /*
   char buffer_hcr[10];
-  sprintf(buffer_hcr, "%3.0d %%", (int)home_consumption_rate);
+  snprintf(buffer_hcr, sizeof(buffer_hcr), "%3d %%", (int)home_consumption_rate);
   displayText(buffer_hcr, 120, GxEPD_ALIGN_CENTER);
   */
 
@@ -304,6 +509,10 @@ void writeOwnConsumption() {
   displayText(getCurrentTime().c_str(), 18, GxEPD_ALIGN_RIGHT);
 
   display.update();
+  
+  // Close Modbus connection after all reads are complete to free resources
+  // and be respectful to the remote Modbus server
+  closeModbusConnection();
 }
 
 void showSetupScreen() {
@@ -327,6 +536,16 @@ void showWiFiConnectionFailedScreen() {
   display.update();
 }
 
+void showModbusConnectionFailedScreen() {
+  display.fillScreen(GxEPD_WHITE);
+  display.setFont(&FreeSans9pt7b);
+  displayText("Kostal Monitor", 18, GxEPD_ALIGN_LEFT);
+  displayText("*** Error ***", 60, GxEPD_ALIGN_CENTER);
+  displayText("Modbus connection failed", 90, GxEPD_ALIGN_LEFT);
+  displayText("Check hostname/IP", 110, GxEPD_ALIGN_LEFT);
+  display.update();
+}
+
 void showWiFiConnectedScreen() {
 
   WiFi.waitForConnectResult();
@@ -334,23 +553,33 @@ void showWiFiConnectedScreen() {
   IPAddress wIP = WiFi.localIP();
   Serial.printf("WiFi IP address: %u.%u.%u.%u\n", wIP[0], wIP[1], wIP[2], wIP[3]);
 
-  Serial.printf("Connecting to %s\n", kostal_hostname.c_str());
+  Serial.printf("Resolving hostname: %s\n", kostal_hostname.c_str());
+  
+  // Validate hostname before attempting resolution
+  if (kostal_hostname.length() == 0) {
+    Serial.println("Error: Kostal hostname is empty");
+    showModbusConnectionFailedScreen();
+    return;
+  }
+  
   WiFi.hostByName(kostal_hostname.c_str(), remote);
 
   if (remote != INADDR_NONE) {
-    Serial.printf("Connecting to kostal converter: %s (IP: %u.%u.%u.%u)\n", kostal_hostname.c_str(), remote[0], remote[1],
-                  remote[2], remote[3]);
-
-    mb.connect(remote, kostal_modbus_port);
+    Serial.printf("Resolved to IP: %u.%u.%u.%u\n", remote[0], remote[1], remote[2], remote[3]);
+    Serial.println("Modbus connection will be established on first read");
   } else {
     Serial.printf("Could not resolve hostname: %s\n", kostal_hostname.c_str());
+    Serial.println("Please check network connection and hostname configuration");
+    showModbusConnectionFailedScreen();
   }
 }
 
-/*
-Method to print the reason by which ESP32
-has been awaken from sleep
-*/
+/**
+ * @brief Print the reason the ESP32 woke up from deep sleep.
+ * 
+ * Diagnostic function to help debug wake-up issues and power management.
+ * Logs the wake-up cause to serial console and resets counter on first boot.
+ */
 void print_wakeup_reason() {
   esp_sleep_wakeup_cause_t wakeup_reason;
 
@@ -380,12 +609,26 @@ void print_wakeup_reason() {
 }
 
 /**
- * @brief
- *
+ * @brief Setup function - initializes hardware and connects to services.
+ * 
+ * Performs system initialization including:
+ * - Serial communication setup
+ * - Display initialization
+ * - WiFi connection and configuration
+ * - NTP time synchronization
+ * - Modbus TCP connection
+ * - Data query and display update
+ * - Deep sleep configuration
  */
 void setup() {
   Serial.begin(SERIAL_SPEED);
-  while (!Serial) {
+  
+  // Wait for serial with timeout to prevent hanging on battery-powered operation
+  unsigned long serialStart = millis();
+  const unsigned long SERIAL_TIMEOUT_MS = 3000;  // 3 second timeout
+  // Overflow-safe timeout comparison using unsigned arithmetic wraparound
+  while (!Serial && ((millis() - serialStart) < SERIAL_TIMEOUT_MS)) {
+    delay(10);
   }
 
   Serial.println(F(".-----------------------------------------------."));
@@ -435,7 +678,7 @@ void setup() {
 
   int hour = getHourOfDay();
   Serial.printf("Current hour: %d\n", hour);
-  if( hour >= 7 && hour <= 23 ) {
+  if( hour >= DISPLAY_UPDATE_START_HOUR && hour <= DISPLAY_UPDATE_END_HOUR ) {
     writeOwnConsumption();
   } else {
     display.fillScreen(GxEPD_WHITE);
@@ -444,11 +687,26 @@ void setup() {
   }
 
 
+  // Disconnect Modbus with timeout protection
+  Serial.println("Disconnecting Modbus...");
   mb.disconnect(remote);            // Close connection and
   mb.dropTransactions();            // Cancel all waiting transactions
-  while (mb.isConnected(remote)) {  // Check if connection to Modbus Slave is established and wait until it is closed
+  
+  unsigned long disconnectStart = millis();
+  while (mb.isConnected(remote)) {
+    // Overflow-safe timeout comparison using unsigned arithmetic wraparound
+    if ((millis() - disconnectStart) >= MODBUS_DISCONNECT_TIMEOUT_MS) {
+      break;  // Timeout
+    }
     mb.task();
+    yield();
     delay(10);
+  }
+  
+  if (mb.isConnected(remote)) {
+    Serial.println("Warning: Modbus disconnect timeout - forcing cleanup");
+  } else {
+    Serial.println("Modbus disconnected successfully");
   }
 
   WiFi.disconnect(true);  // Disconnect from the network
@@ -477,7 +735,9 @@ void setup() {
 }
 
 /**
- * @brief
- *
+ * @brief Main loop - not used as device operates in deep sleep mode.
+ * 
+ * This function is required by Arduino but never executes because the device
+ * enters deep sleep at the end of setup() and wakes up to restart setup().
  */
 void loop() {}

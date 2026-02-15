@@ -118,3 +118,6 @@ node_modules
 .temp
 .cache
 dist
+
+# CodeQL analysis files
+_codeql_*

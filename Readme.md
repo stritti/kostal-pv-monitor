@@ -36,19 +36,65 @@ Project is developed with [PlatformIO](https://platformio.org/).
 
 Communication is based on [Kostal Plenticore Modbus](docs\BA_KOSTAL-Interface-description-MODBUS-TCP_SunSpec_Hybrid.pdf)
 
+## Security and Best Practices
+
+This project implements several IoT security and reliability best practices:
+
+### Memory Safety
+* **Buffer overflow protection**: All string formatting uses `snprintf()` instead of `sprintf()` to prevent buffer overflows
+* **Variable initialization**: All variables are initialized before use to prevent undefined behavior
+* **Input validation**: Hostname and IP addresses are validated before use
+
+### Network Security
+* **Timeout protection**: All network operations (WiFi, NTP, Modbus) have configurable timeouts to prevent infinite loops
+* **Connection validation**: Remote IP addresses and hostnames are validated before attempting connections
+* **Error handling**: Comprehensive error handling with informative error messages for debugging
+
+### Modbus Best Practices
+* **Rate limiting**: Minimum 5-second delay between Modbus query batches to avoid overwhelming the inverter
+* **Inter-query delay**: 100ms delay between individual register reads to prevent burst traffic
+* **Connection reuse**: Maintains stable connection during read operations, then closes gracefully
+* **Retry logic**: Automatic reconnection with exponential backoff (500ms → 1s → 2s) for robustness
+* **Proper cleanup**: Connection is properly closed after all reads to free inverter resources
+* **Transaction timeouts**: 5-second timeout per transaction prevents hanging on communication issues
+* **Graceful disconnect**: Ensures proper TCP connection teardown to avoid resource leaks on inverter side
+
+### Power Optimization
+* **Deep sleep mode**: Device enters deep sleep between readings to conserve battery
+* **Conditional updates**: Display only updates during daylight hours (7 AM - 11 PM) to save power
+* **Rate limiting**: Modbus queries are rate-limited to avoid overwhelming the inverter
+
+### Reliability
+* **Watchdog timers**: Transaction timeouts prevent hanging on failed communications
+* **Retry logic**: NTP synchronization includes retry logic with exponential backoff
+* **Error recovery**: Failed operations return safe default values instead of crashing
+
+### Code Quality
+* **Constants for magic numbers**: All magic numbers replaced with named constants for maintainability
+* **Comprehensive documentation**: All functions have detailed documentation comments
+* **Type safety**: Proper use of unsigned types where negative values are impossible
+
 ## Used Libraries
 
-* adafruit/Adafruit BusIO@^1.11.2
-* adafruit/Adafruit GFX Library@^1.10.13
+* adafruit/Adafruit BusIO@^1.11.3
+* adafruit/Adafruit GFX Library@^1.10.12
 * zinggjm/GxEPD@^3.1.1
-* emelianov/modbus-esp8266@^4.0.0
+* emelianov/modbus-esp8266@^4.1.0
 * juerd/ESP-WiFiSettings@^3.8.0
 * me-no-dev/AsyncTCP@^1.1.1
 * olikraus/U8g2@^2.32.10
 * olikraus/U8g2_for_Adafruit_GFX@^1.8.0
-* arduino-libraries/NTPClient@^3.1.0
+* arduino-libraries/NTPClient@^3.2.1
+* madpilot/mDNSResolver@^0.3
+* jchristensen/Timezone@^1.2.4
 
-* vuepress: <https://vuepress.vuejs.org/> (for documentation)
+* VitePress: ^1.5.0 (for documentation)
+
+## Build Configuration
+
+The project includes two build environments:
+* **ttygo-t5** (default): Optimized release build with size optimization (-Os)
+* **ttygo-t5-debug**: Debug build with verbose logging for development
 
 ## Credits
 

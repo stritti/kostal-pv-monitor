@@ -16,27 +16,36 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
+    
+    # Security: Limit GITHUB_TOKEN permissions to minimum required
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
       - name: Cache pip
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
       - name: Cache PlatformIO
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ~/.platformio
-          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+          key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini', '.pio/libdeps/**') }}
+          restore-keys: |
+            ${{ runner.os }}-platformio-
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade platformio
+      - name: Run PlatformIO Check (Linter)
+        run: pio check --severity=high --skip-packages
+        continue-on-error: true
       - name: Run PlatformIO
         run: pio run

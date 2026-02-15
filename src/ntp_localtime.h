@@ -4,6 +4,10 @@
 #include <WiFiUdp.h>
 #include <Timezone.h>
 
+// NTP retry configuration
+const int NTP_MAX_RETRIES = 5;
+const int NTP_RETRY_DELAY_MS = 100;
+
 // Define NTP Client to get time
 WiFiUDP   ntpUDP;
 NTPClient timeClient(ntpUDP, "europe.pool.ntp.org");
@@ -21,22 +25,40 @@ Timezone       UTC(utcRule);
 Timezone currentTZ = CE;
 
 static String getCurrentTime() {
-  // update time
-  while (!timeClient.update()) {
+  // update time with timeout protection
+  int retries = 0;
+  
+  while (!timeClient.update() && retries < NTP_MAX_RETRIES) {
     timeClient.forceUpdate();
+    retries++;
+    delay(NTP_RETRY_DELAY_MS);  // Small delay between retries
   }
+  
+  if (retries >= NTP_MAX_RETRIES) {
+    Serial.println("Warning: NTP update failed after retries");
+  }
+  
   time_t t = currentTZ.toLocal(timeClient.getEpochTime());
   char   buf[10];
-  sprintf(buf, "%.2d:%.2d", hour(t), minute(t));
+  snprintf(buf, sizeof(buf), "%.2d:%.2d", hour(t), minute(t));
 
   return String(buf);
 }
 
 static int getHourOfDay() {
-  // update time
-  while (!timeClient.update()) {
+  // update time with timeout protection
+  int retries = 0;
+  
+  while (!timeClient.update() && retries < NTP_MAX_RETRIES) {
     timeClient.forceUpdate();
+    retries++;
+    delay(NTP_RETRY_DELAY_MS);  // Small delay between retries
   }
+  
+  if (retries >= NTP_MAX_RETRIES) {
+    Serial.println("Warning: NTP update failed after retries in getHourOfDay");
+  }
+  
   time_t t = currentTZ.toLocal(timeClient.getEpochTime());
   return hour(t);
 }

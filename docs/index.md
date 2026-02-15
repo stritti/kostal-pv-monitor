@@ -1,30 +1,38 @@
 ---
-home: true
-heroImage: /img/kostal-pv-monitor.jpg
-tagline: ESP32 based Device to monitor Power Consumption of Kostal Plenticore Converters
+layout: home
+
+hero:
+  name: "Kostal PV Monitor"
+  text: "ESP32 based Device"
+  tagline: Monitor Power Consumption of Kostal Plenticore Converters
+  image:
+    src: /img/kostal-pv-monitor.jpg
+    alt: Kostal PV Monitor Gadget
+  actions:
+    - theme: brand
+      text: Get Started
+      link: /#setup
+    - theme: alt
+      text: View on GitHub
+      link: https://github.com/stritti/kostal-pv-monitor
 
 features:
-  - title: ESP32 based E-Ink Device
-    details:
-      2,13" E-Ink Display with 128x64 pixel resolution showing data with very low energy
-      consumption.
-  - title: Easy Power Monitoring
-    details:
-      The device is powered by a LiPo battery and could be placed anywhere.
-      Data is transfered using WiFi.
-  - title: Modbus
-    details:
-      Communication is based on official Kostal Plenticore Modbus protocol to load data from Converter.
-
-footer: <div>MIT Licensed | Copyright 2022-present | <a href="https://twitter.com/_stritti_">Stephan Strittmatter</a></div>
-footerHtml: true
+  - icon: 📱
+    title: ESP32 based E-Ink Device
+    details: 2,13" E-Ink Display with 128x64 pixel resolution showing data with very low energy consumption.
+  - icon: ⚡
+    title: Easy Power Monitoring
+    details: The device is powered by a LiPo battery and could be placed anywhere. Data is transferred using WiFi.
+  - icon: 🔌
+    title: Modbus
+    details: Communication is based on official Kostal Plenticore Modbus protocol to load data from Converter.
 ---
 
 # Power Monitor for Kostal Plenticore Converter
 
 This gadget is designed to show the power usage of a Kostal Plenticore Converter having attached solar cells and buffer battery.
 
-Data is transfered using WiFi and read from Kostal Plenticore Converter using Modbus protocol.
+Data is transferred using WiFi and read from Kostal Plenticore Converter using Modbus protocol.
 
 ::: warning
 This is a private project and not officially supported by [Kostal Solar Electric](https://www.kostal-solar-electric.com/).
@@ -40,7 +48,7 @@ It displays current power generation and consumption:
 * Grid consumption/generation [W]
 * Time of last query
 
-To get fast insight on power consumtion of the house, the device shows smiley depending on primary energy source:
+To get fast insight on power consumption of the house, the device shows smiley depending on primary energy source:
 
 * battery: 🙂
 * PV: 😎
@@ -65,7 +73,7 @@ First of all, please verify if Modbus is activated at your converter:
 
 <img src="/img/kostal-pv-monitor-settings.jpg" alt="Kostal PV Monitor Settings" width="300" align="right">
 
-If you start the device firsst time, it showsinformation to conect to its own WiFi hotspot. The Device runs in AP mode.
+If you start the device first time, it shows information to connect to its own WiFi hotspot. The Device runs in AP mode.
 
 Take for example your smartphone and connect to shown WiFi hotspot.
 

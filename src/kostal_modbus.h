@@ -3,7 +3,8 @@
 #include <ModbusIP_ESP8266.h>
 
 const uint8_t KOSTAL_MODBUS_SLAVE_ID = 71;    // slave id of the Modbus TCP server
-const int32_t MODBUS_QUERY_DELAY     = 5000;  // Show result every n'th millisecond (1500)
+const int32_t MODBUS_QUERY_DELAY     = 5000;  // Minimum delay between Modbus query batches (milliseconds)
+const int32_t MODBUS_INTER_QUERY_DELAY = 100; // Small delay between individual register reads to avoid burst traffic
 
 const uint16_t KOSTAL_MODBUS_REG_OWN_CONSUMPTION_BATTERY    = 0x6A;  // own consumption from battery
 const uint16_t KOSTAL_MODBUS_REG_OWN_CONSUMPTION_GRID       = 0x6C;  // own consumption from grid
