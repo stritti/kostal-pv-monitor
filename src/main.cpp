@@ -185,7 +185,11 @@ bool establishModbusConnection() {
       Serial.println("Modbus connected, waiting for connection to settle...");
       // Give connection time to stabilize with non-blocking approach
       unsigned long settleStart = millis();
-      while (millis() - settleStart < MODBUS_CONNECTION_SETTLE_MS) {
+      while (true) {
+        // Overflow-safe timeout comparison using unsigned arithmetic wraparound
+        if ((millis() - settleStart) >= MODBUS_CONNECTION_SETTLE_MS) {
+          break;
+        }
         mb.task();
         yield();
         delay(10);
