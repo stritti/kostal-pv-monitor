@@ -174,6 +174,7 @@ Verwendete Libraries (Version-Pinned in platformio.ini):
 - `arduino-libraries/NTPClient@^3.2.1`
 - `madpilot/mDNSResolver@^0.3`
 - `jchristensen/Timezone@^1.2.4`
+- `Wire@2.0.0`
 
 Dependency-Management:
 
