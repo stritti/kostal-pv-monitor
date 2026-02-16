@@ -154,10 +154,12 @@ Breaking Changes müssen mit `BREAKING CHANGE:` im Footer markiert werden.
 
 ## 16. Tests
 
-- Test-Infrastruktur vorhanden (`test/` Verzeichnis)
+- Test-Infrastruktur vorhanden (`test/` Verzeichnis mit PlatformIO Unity)
+- Basis-Tests für millis()-Overflow-Handling, Buffer-Safety, Timeout-Konstanten
 - Desktop-Tests ignoriert (`test_ignore = test_desktop`)
-- Unit-Tests für Modbus-Parser, NTP-Logic, Display-Rendering
+- Unit-Tests für Modbus-Parser, NTP-Logic, Display-Rendering erwünscht
 - Native Tests für CI bevorzugt
+- Tests werden im CI-Workflow automatisch ausgeführt
 
 ## 17. Dependencies
 

@@ -47,5 +47,8 @@ jobs:
       - name: Run PlatformIO Check (Linter)
         run: pio check --severity=high --skip-packages
         continue-on-error: true
-      - name: Run PlatformIO
+      - name: Run PlatformIO Build
         run: pio run
+      - name: Run PlatformIO Tests
+        run: pio test -e native
+        continue-on-error: false
