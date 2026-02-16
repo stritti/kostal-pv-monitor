@@ -154,12 +154,12 @@ Breaking Changes müssen mit `BREAKING CHANGE:` im Footer markiert werden.
 
 ## 16. Tests
 
-- Test-Infrastruktur vorhanden (`test/` Verzeichnis mit PlatformIO Unity)
+- Test-Infrastruktur vorhanden (`test/` und `test_desktop/` Verzeichnisse mit PlatformIO Unity)
 - Basis-Tests für millis()-Overflow-Handling, Buffer-Safety, Timeout-Konstanten
-- Desktop-Tests ignoriert (`test_ignore = test_desktop`)
+- Native Tests in `test_desktop/` für CI (laufen ohne Hardware)
+- ESP32-spezifische Tests in `test/` für Hardware-Tests
 - Unit-Tests für Modbus-Parser, NTP-Logic, Display-Rendering erwünscht
-- Native Tests für CI bevorzugt
-- Tests werden im CI-Workflow automatisch ausgeführt
+- Tests werden im CI-Workflow automatisch ausgeführt (native environment)
 
 ## 17. Dependencies
 
