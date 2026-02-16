@@ -192,7 +192,7 @@ Dependency-Management:
 
 ## 19. Antipatterns (verboten)
 
-- Unlimitierte `delay()` im Main-Loop
+- Unbegrenzte `delay()`-Aufrufe im Main-Loop
 - Busy-Wait-Schleifen
 - Blockierende Netzwerk-Calls ohne Timeout
 - Häufige Heap-Allokationen in Hot-Paths
