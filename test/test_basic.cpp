@@ -39,9 +39,9 @@ void test_snprintf_buffer_safety(void) {
     int written = snprintf(buffer, sizeof(buffer), "%s", longString);
     
     // snprintf should return length it would have written (>= buffer size)
-    TEST_ASSERT_GREATER_OR_EQUAL(sizeof(buffer), written);
+    TEST_ASSERT_GREATER_OR_EQUAL(sizeof(buffer), (size_t)written);
     // But actual buffer should be null-terminated and safe
-    TEST_ASSERT_EQUAL(0, buffer[sizeof(buffer)-1]);
+    TEST_ASSERT_EQUAL_CHAR('\0', buffer[sizeof(buffer)-1]);
     TEST_ASSERT_LESS_THAN(sizeof(buffer), strlen(buffer) + 1);
 }
 
