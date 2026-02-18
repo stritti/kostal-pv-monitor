@@ -18,8 +18,8 @@ void test_millis_overflow_safe_timeout(void) {
     
     // Overflow-safe pattern: (current - start) >= timeout
     unsigned long elapsed = current - start;
-    TEST_ASSERT_GREATER_OR_EQUAL(timeout, elapsed);
     TEST_ASSERT_EQUAL_UINT32(512, elapsed);  // Should be exactly 512
+    TEST_ASSERT_TRUE(elapsed >= timeout);  // Verify overflow-safe comparison works
 }
 
 // Test millis() overflow-safe rate limiting pattern
@@ -46,8 +46,8 @@ void test_snprintf_buffer_safety(void) {
     TEST_ASSERT_GREATER_OR_EQUAL(sizeof(buffer), (size_t)written);
     // Buffer should be null-terminated
     TEST_ASSERT_EQUAL_CHAR('\0', buffer[sizeof(buffer)-1]);
-    // Length should be safe
-    TEST_ASSERT_LESS_THAN(sizeof(buffer), strlen(buffer) + 1);
+    // Actual string length should be at most buffer size - 1
+    TEST_ASSERT_LESS_THAN(sizeof(buffer), strlen(buffer));
 }
 
 // Test snprintf with formatting
